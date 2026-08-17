@@ -1,0 +1,62 @@
+{
+  //"files.associations": {},
+  //"files.exclude": {},
+  //"search.exclude": {},
+  "terminal.integrated.shellIntegration.enabled": true,
+  "chat.mcp.serverSampling": {
+    "chat-ui-react-template/.vscode/mcp.json: microsoft/azure-mcp": {
+      "allowedDuringChat": true
+    }
+  },
+
+  // ---------------------------------------------------------
+  // Default Formatting
+  // ---------------------------------------------------------
+  // JSON
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonl]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // Markdown
+  "[markdown]": {
+    "editor.wordWrap": "off",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // TOML
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+  // YAML
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+
+  // ---------------------------------------------------------
+  // React Web Application
+  // ---------------------------------------------------------
+  // TypeScript / JavaScript
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // JavaScript
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // Stylesheets
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "tailwindCSS.experimental.configFile": "app/frontend/src/index.css",
+  "tailwindCSS.classFunctions": ["cn", "cva"]
+}

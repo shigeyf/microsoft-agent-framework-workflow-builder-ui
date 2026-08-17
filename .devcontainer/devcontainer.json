@@ -1,0 +1,73 @@
+{
+  "name": "Project Default Dev Container",
+
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  "privileged": true,
+
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "os-provided"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {},
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "version": "2.89.0",
+      "extensions": "account"
+    },
+    "ghcr.io/azure/azure-dev/azd:latest": {
+      "version": "1.30.0"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      // "extensions" for this project are specified in here will be installed in Dev Container.
+      "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "DavidAnson.vscode-markdownlint",
+        "dbaeumer.vscode-eslint",
+        "EditorConfig.EditorConfig",
+        "esbenp.prettier-vscode",
+        "GitHub.vscode-github-actions",
+        "humao.rest-client",
+        "ms-azuretools.vscode-azureresourcegroups",
+        "ms-azuretools.vscode-azureterraform",
+        "ms-azuretools.vscode-azure-github-copilot",
+        "ms-azuretools.vscode-azure-mcp-server",
+        "ms-azuretools.vscode-bicep",
+        "ms-azuretools.vscode-containers",
+        "ms-playwright.playwright",
+        "ms-vscode.azurecli",
+        "ms-vscode.vscode-typescript-next",
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml"
+      ],
+      // DevContainer automatically inherits the workspace settings.json.
+      "settings": {
+        "terminal.integrated.shellIntegration.enabled": true
+      }
+    }
+  },
+
+  "remoteUser": "node",
+  "postCreateCommand": "bash .devcontainer/scripts/post-create.sh",
+
+  "mounts": [],
+
+  "forwardPorts": [3000, 5173],
+  "portsAttributes": {
+    "3000": {
+      "label": "React Dev Server (CRA)",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}

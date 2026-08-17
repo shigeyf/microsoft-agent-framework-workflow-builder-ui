@@ -1,0 +1,22 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "DavidAnson.vscode-markdownlint",
+    "dbaeumer.vscode-eslint",
+    "EditorConfig.EditorConfig",
+    "esbenp.prettier-vscode",
+    "GitHub.vscode-github-actions",
+    "humao.rest-client",
+    "ms-azuretools.vscode-azureresourcegroups",
+    "ms-azuretools.vscode-azureterraform",
+    "ms-azuretools.vscode-azure-github-copilot",
+    "ms-azuretools.vscode-azure-mcp-server",
+    "ms-azuretools.vscode-bicep",
+    "ms-azuretools.vscode-containers",
+    "ms-playwright.playwright",
+    "ms-vscode.azurecli",
+    "ms-vscode.vscode-typescript-next",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml"
+  ]
+}

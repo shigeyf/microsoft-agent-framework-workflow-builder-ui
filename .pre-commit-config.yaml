@@ -1,0 +1,80 @@
+# .pre-commit-config.yaml
+#
+#  Pre-commit configuration file
+#  To install pre-commit executable command via pip: pip install pre-commit
+#  To install the git hooks, run: pre-commit install --install-hooks
+#  See https://pre-commit.com/ for more details
+
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: []
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+        name: "[Fmt]  Fix end of files"
+      - id: trailing-whitespace
+        name: "[Fmt]  Fix trailing whitespaces"
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.49.1
+    hooks:
+      - id: markdownlint
+        name: "[Lint] Markdownlint (*.md)"
+        args: ["--config", ".markdownlint.yaml"]
+
+  - repo: local
+    hooks:
+      - id: frontend-prettier
+        name: "[Fmt]  Prettier format (app/frontend)"
+        entry: prettier --write
+        language: node
+        files: ^app/frontend/.*\.(css|html|js|jsx|json|md|ts|tsx)$
+        exclude: ^app/frontend/package-lock\.json$
+        additional_dependencies:
+          - prettier@3.9.6
+
+      - id: frontend-eslint
+        name: "[Lint] ESLint (app/frontend)"
+        entry: bash -c 'cd app/frontend && npm run lint'
+        language: system
+        pass_filenames: false
+        files: ^app/frontend/.*\.(js|jsx|ts|tsx)$
+
+      - id: prettier-check
+        name: "[Fmt]  Prettier format check (*.json)"
+        entry: prettier --check
+        language: node
+        types_or: [json]
+        additional_dependencies:
+          - prettier@3.9.6
+
+#  - repo: https://github.com/pre-commit/pre-commit-hooks
+#    rev: v6.0.0
+#    hooks:
+#      - id: pretty-format-json
+#        name: "[Fmt]  Pretty format JSON (*.json)"
+#        args: ["--autofix", "--indent", "2", "--no-sort-keys"]
+#        types_or: [json]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+        name: "[Lint] check-yaml (*.yml,*.yaml)"
+        types_or: [yaml]
+
+#  - repo: https://github.com/ComPWA/taplo-pre-commit
+#    rev: v0.9.3
+#    hooks:
+#      - id: taplo-format
+#        name: '[Fmt]  Taplo (*.toml)'

@@ -1,0 +1,12 @@
+# .markdownlint.yaml
+
+default: true
+# MD013 - Line length
+MD013: false
+# MD024 - Multiple headers with the same content
+MD024:
+  siblings_only: true
+# MD034 - Bare URL used
+MD034: false
+# MD036 - Emphasis used instead of a header
+MD036: false
