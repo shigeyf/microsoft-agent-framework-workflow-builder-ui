@@ -34,29 +34,19 @@ repos:
 
   - repo: local
     hooks:
-      - id: frontend-prettier
-        name: "[Fmt]  Prettier format (app/frontend)"
-        entry: prettier --write
-        language: node
-        files: ^app/frontend/.*\.(css|html|js|jsx|json|md|ts|tsx)$
-        exclude: ^app/frontend/package-lock\.json$
-        additional_dependencies:
-          - prettier@3.9.6
-
-      - id: frontend-eslint
-        name: "[Lint] ESLint (app/frontend)"
-        entry: bash -c 'cd app/frontend && npm run lint'
+      - id: ui-format-check
+        name: "[Fmt]  Prettier check (src/ui)"
+        entry: bash -c 'cd src/ui && npm run format:check'
         language: system
         pass_filenames: false
-        files: ^app/frontend/.*\.(js|jsx|ts|tsx)$
+        files: ^src/ui/.*\.(css|html|json|md|ts|tsx)$
 
-      - id: prettier-check
-        name: "[Fmt]  Prettier format check (*.json)"
-        entry: prettier --check
-        language: node
-        types_or: [json]
-        additional_dependencies:
-          - prettier@3.9.6
+      - id: ui-oxlint
+        name: "[Lint] Oxlint (src/ui)"
+        entry: bash -c 'cd src/ui && node ./node_modules/oxlint/dist/cli.js .'
+        language: system
+        pass_filenames: false
+        files: ^src/ui/.*\.(js|jsx|ts|tsx)$
 
 #  - repo: https://github.com/pre-commit/pre-commit-hooks
 #    rev: v6.0.0
