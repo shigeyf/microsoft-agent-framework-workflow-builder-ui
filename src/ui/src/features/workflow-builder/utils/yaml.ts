@@ -1,12 +1,23 @@
 import type { ActionModel, InputParam, WorkflowStyle } from "../types";
 
+/** `: ` and ` #` end a plain scalar, so any value containing them must be quoted. */
+function needsQuoting(value: string): boolean {
+  return (
+    /:(\s|$)/.test(value) ||
+    /(^|\s)#/.test(value) ||
+    /[\n"']/.test(value) ||
+    value.trim() !== value
+  );
+}
+
 function yamlScalar(value: string): string {
   if (!value) {
     return '""';
   }
 
+  // Expressions must keep their leading `=`, so single quotes are used instead of JSON escaping.
   if (value.startsWith("=")) {
-    return value;
+    return needsQuoting(value) ? `'${value.replaceAll("'", "''")}'` : value;
   }
 
   if (/^[A-Za-z0-9_./-]+$/.test(value)) {
@@ -113,6 +124,16 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
         );
         break;
       }
+      case "GotoAction":
+        lines.push(`${indent}  actionId: ${yamlScalar(action.actionId ?? "")}`);
+        break;
+      case "CreateConversation":
+        if (action.conversationId) {
+          lines.push(
+            `${indent}  conversationId: ${yamlScalar(action.conversationId)}`,
+          );
+        }
+        break;
       case "RequestExternalInput": {
         const text = action.prompt?.text ?? "";
         lines.push(`${indent}  prompt:`);

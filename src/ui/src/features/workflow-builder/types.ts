@@ -13,6 +13,7 @@ export type ActionKind =
   | "Question"
   | "RequestExternalInput"
   | "GotoAction"
+  | "EndWorkflow"
   | "CreateConversation"
   | "InvokeFunctionTool"
   | "InvokeMcpTool"
@@ -47,6 +48,8 @@ export type ActionModel = {
   defaultValue?: string;
   default?: string;
   condition?: string;
+  /** Target action id for GotoAction. */
+  actionId?: string;
   then?: ActionModel[];
   else?: ActionModel[];
   conditions?: ConditionBranch[];

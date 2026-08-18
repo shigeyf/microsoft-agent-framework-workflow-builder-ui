@@ -24,9 +24,11 @@ import {
   type BranchRef,
 } from "./domain/nodeIds";
 import { branchSlotPosition } from "./graph/buildNodes";
+import { autoLayout } from "./graph/autoLayout";
 import { LAYOUT, OVERLAY_CASCADE } from "./graph/layout";
 import { useWorkflowGraph } from "./graph/useWorkflowGraph";
 import { buildYaml } from "./utils/yaml";
+import { parseWorkflowYaml } from "./utils/parseYaml";
 import { actionKindOptions } from "./types";
 import type {
   ActionKind,
@@ -57,6 +59,7 @@ export function WorkflowBuilder() {
     y: number;
   } | null>(null);
   const [yamlCollapsed, setYamlCollapsed] = useState(false);
+  const [importError, setImportError] = useState("");
   const [nodePositions, setNodePositions] = useState<{
     start: Position;
     output: Position;
@@ -342,6 +345,40 @@ export function WorkflowBuilder() {
     setInspectorAnchor(null);
   };
 
+  const importYaml = (text: string) => {
+    let parsed;
+
+    try {
+      parsed = parseWorkflowYaml(text);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+      return;
+    }
+
+    setStyle(parsed.style);
+    setName(parsed.name);
+    setDescription(parsed.description);
+    setTriggerKind(parsed.triggerKind);
+    setInputs(parsed.inputs);
+
+    const positioned = autoLayout(parsed.actions);
+    setActions(positioned.actions);
+    setNodePositions({
+      start: LAYOUT.startPosition,
+      output: {
+        x: positioned.right + LAYOUT.branchGapX,
+        y: LAYOUT.startPosition.y,
+      },
+    });
+    setCollapsedActionIds([]);
+    closeInspector();
+    setImportError(
+      parsed.unsupportedKinds.length > 0
+        ? `未対応のアクションはそのまま表示されます: ${parsed.unsupportedKinds.join(", ")}`
+        : "",
+    );
+  };
+
   const resolvedActionId = findAction(actions, selectedActionId)
     ? selectedActionId
     : "";
@@ -363,7 +400,14 @@ export function WorkflowBuilder() {
         style={style}
         onStyleChange={setStyle}
         onCopyYaml={copyYaml}
+        onImportYaml={importYaml}
       />
+
+      {importError ? (
+        <p className="import-banner" role="status">
+          {importError}
+        </p>
+      ) : null}
 
       <main className={`workspace${yamlCollapsed ? " yaml-collapsed" : ""}`}>
         <div className="canvas-stage">

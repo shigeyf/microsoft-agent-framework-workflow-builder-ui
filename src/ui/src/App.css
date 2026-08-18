@@ -119,6 +119,16 @@ button:hover {
   background: rgba(127, 29, 29, 0.9);
 }
 
+.import-banner {
+  margin: 0 24px 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  border-radius: 8px;
+  background: rgba(113, 63, 18, 0.35);
+  color: #fde68a;
+  font-size: 13px;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(380px, 2.2fr) minmax(300px, 1.1fr);

@@ -23,16 +23,52 @@ export type NodePositions = { start: Position; output: Position };
 type Position = { x: number; y: number };
 type Box = Position & { width: number; height: number };
 
+/**
+ * Vertical space an action needs, counting every branch nested inside it.
+ * Derived from the tree shape alone so it never depends on stored coordinates.
+ */
+export function subtreeHeight(action: ActionModel): number {
+  if (!isBranchAction(action)) {
+    return LAYOUT.node.height;
+  }
+
+  const rows = branchesOf(action);
+  if (rows.length === 0) {
+    return LAYOUT.node.height;
+  }
+
+  return rows.reduce(
+    (total, branch, index) =>
+      total +
+      branchRowHeight(branch.actions) +
+      (index > 0 ? LAYOUT.branchRowGap : 0),
+    0,
+  );
+}
+
+export function branchRowHeight(actions: ActionModel[]): number {
+  return Math.max(
+    LAYOUT.branchLabel.height,
+    LAYOUT.node.height,
+    ...actions.map(subtreeHeight),
+  );
+}
+
 /** Branch labels stack vertically to the right of the branch action. */
 export function branchLabelPosition(
   action: ActionModel,
   rowIndex: number,
 ): Position {
+  const rows = branchesOf(action);
+  let offset = 0;
+
+  for (let index = 0; index < rowIndex && index < rows.length; index += 1) {
+    offset += branchRowHeight(rows[index].actions) + LAYOUT.branchRowGap;
+  }
+
   return {
     x: (action.x ?? 0) + LAYOUT.branchLabelOffsetX,
-    y:
-      (action.y ?? 0) +
-      rowIndex * (LAYOUT.branchLabel.height + LAYOUT.branchRowGap),
+    y: (action.y ?? 0) + offset,
   };
 }
 
@@ -164,14 +200,22 @@ function buildBranchNodes(
       });
     });
 
-    return [
-      boundingContainer(action, boxes),
-      ...nodes,
-      ...buildBranchNodes(
-        branchesOf(action).flatMap((branch) => branch.actions),
-        collapsed,
-      ),
-    ];
+    // Nested containers are measured too, so their frame stays inside this one.
+    const nested = buildBranchNodes(
+      branchesOf(action).flatMap((branch) => branch.actions),
+      collapsed,
+    );
+
+    for (const node of nested) {
+      boxes.push({
+        x: node.x,
+        y: node.y,
+        width: node.width ?? LAYOUT.node.width,
+        height: node.height ?? LAYOUT.node.height,
+      });
+    }
+
+    return [boundingContainer(action, boxes), ...nodes, ...nested];
   });
 }
 
