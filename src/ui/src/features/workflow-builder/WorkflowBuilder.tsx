@@ -6,6 +6,7 @@ import { YamlPreview } from "./components/YamlPreview";
 import { createAction, defaultActions, defaultInputs } from "./data";
 import {
   findAction,
+  isInsideLoop,
   insertAfter,
   insertIntoBranch,
   removeAction as removeActionFromTree,
@@ -19,7 +20,7 @@ import {
   parseNodeId,
   type BranchRef,
 } from "./domain/nodeIds";
-import { canChangeStyle, kindsForStyle } from "./domain/styles";
+import { canChangeStyle, kindsForDestination } from "./domain/styles";
 import { autoLayout } from "./graph/autoLayout";
 import { LAYOUT, OVERLAY_CASCADE } from "./graph/layout";
 import { useWorkflowGraph } from "./graph/useWorkflowGraph";
@@ -397,8 +398,28 @@ export function WorkflowBuilder() {
           : null;
 
   const actionBySelectedId = resolvedActionId;
-  const availableKinds = kindsForStyle(style);
   const styleLocked = !canChangeStyle(actions.length, inputs.length);
+
+  /** Kinds offered by the "+" on a node; null means the top level list. */
+  const kindsFor = (nodeIdValue: string | null) => {
+    if (!nodeIdValue) {
+      return kindsForDestination(style, false);
+    }
+
+    const parsed = parseNodeId(nodeIdValue);
+
+    if (parsed.kind === "start" || parsed.kind === "output") {
+      return kindsForDestination(style, false);
+    }
+
+    const insideLoop =
+      (parsed.kind === "branch" || parsed.kind === "branchAdder") &&
+      parsed.ref.branch === "loop"
+        ? true
+        : isInsideLoop(actions, parsed.actionId);
+
+    return kindsForDestination(style, insideLoop);
+  };
 
   return (
     <div className="app-shell">
@@ -425,7 +446,7 @@ export function WorkflowBuilder() {
             nodes={workflowNodes}
             connections={workflowConnections}
             selectedActionId={actionBySelectedId}
-            actionKindOptions={availableKinds}
+            kindsFor={kindsFor}
             onSelectAction={(nodeId, anchor) =>
               handleNodeSelection(nodeId, "action", anchor)
             }
@@ -452,7 +473,7 @@ export function WorkflowBuilder() {
               description={description}
               triggerKind={triggerKind}
               style={style}
-              actionKindOptions={availableKinds}
+              kindsFor={kindsFor}
               onClose={closeInspector}
               onNameChange={setName}
               onDescriptionChange={setDescription}

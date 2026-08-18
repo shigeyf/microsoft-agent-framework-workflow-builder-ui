@@ -42,7 +42,7 @@ type GraphCanvasProps = {
   nodes: WorkflowGraphNode[];
   connections: WorkflowConnection[];
   selectedActionId: string;
-  actionKindOptions: ActionKind[];
+  kindsFor: (nodeId: string | null) => ActionKind[];
   onSelectAction: (id: string, anchor: { x: number; y: number }) => void;
   onUpdateAction: <K extends keyof ActionModel>(
     id: string,
@@ -309,7 +309,7 @@ export function GraphCanvas({
   nodes,
   connections,
   selectedActionId,
-  actionKindOptions,
+  kindsFor,
   onSelectAction,
   onUpdateAction,
   onUpdateNodePosition,
@@ -710,7 +710,7 @@ export function GraphCanvas({
                 }}
               >
                 <option value="">Select...</option>
-                {actionKindOptions.map((kind) => (
+                {kindsFor(connectorPicker.sourceId).map((kind) => (
                   <option key={kind} value={kind}>
                     {kind}
                   </option>

@@ -4,6 +4,7 @@ import {
   flattenActions,
   insertAfter,
   insertIntoBranch,
+  isInsideLoop,
   removeAction,
   translateSubtree,
   updateAction,
@@ -26,6 +27,37 @@ function tree(): ActionModel[] {
     action("tail"),
   ];
 }
+
+describe("isInsideLoop", () => {
+  const tree: ActionModel[] = [
+    {
+      id: "loop",
+      kind: "Foreach",
+      displayName: "loop",
+      body: [
+        { id: "inner", kind: "SendActivity", displayName: "inner" },
+        {
+          id: "if_in_loop",
+          kind: "If",
+          displayName: "if",
+          then: [{ id: "deep", kind: "SendActivity", displayName: "deep" }],
+          else: [],
+        },
+      ],
+    },
+    { id: "outside", kind: "SendActivity", displayName: "outside" },
+  ];
+
+  it("reports the loop body and everything nested in it", () => {
+    expect(isInsideLoop(tree, "inner")).toBe(true);
+    expect(isInsideLoop(tree, "deep")).toBe(true);
+  });
+
+  it("reports siblings of the loop as outside", () => {
+    expect(isInsideLoop(tree, "loop")).toBe(false);
+    expect(isInsideLoop(tree, "outside")).toBe(false);
+  });
+});
 
 describe("findAction", () => {
   it("reaches actions nested in a loop body", () => {

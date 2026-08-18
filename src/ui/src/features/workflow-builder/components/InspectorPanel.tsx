@@ -17,7 +17,7 @@ type InspectorPanelProps = {
   description: string;
   triggerKind: string;
   style: "python" | "csharp";
-  actionKindOptions: ActionKind[];
+  kindsFor: (nodeId: string | null) => ActionKind[];
   onClose: () => void;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
@@ -57,7 +57,7 @@ export function InspectorPanel({
   description,
   triggerKind,
   style,
-  actionKindOptions,
+  kindsFor,
   onClose,
   onNameChange,
   onDescriptionChange,
@@ -124,7 +124,7 @@ export function InspectorPanel({
               description={description}
               triggerKind={triggerKind}
               style={style}
-              actionKindOptions={actionKindOptions}
+              kindsFor={kindsFor}
               inputs={inputs}
               onNameChange={onNameChange}
               onDescriptionChange={onDescriptionChange}
@@ -140,7 +140,7 @@ export function InspectorPanel({
         {target.kind === "action" && action ? (
           <ActionEditor
             action={action}
-            actionKindOptions={actionKindOptions}
+            kindsFor={kindsFor}
             style={style}
             gotoTargets={flattenActions(actions)
               .map((item) => item.id)

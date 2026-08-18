@@ -471,6 +471,13 @@ Python の形（`_executors_control_flow.py` より）:
 
 `ContinueLoop` も同じ形で、以降の本体をスキップして次の反復へ進む。
 
+**`Foreach` の外では使えない。** ただし両言語で扱いが異なる。
+
+- Python: `ValueError("BreakLoop action can only be used inside a Foreach loop")` を送出し、**ワークフローの構築に失敗する**
+- C#: 「Skip action if its not contained a loop」というコメントのとおり、該当アクションを**黙って無視する**
+
+本アプリはループの内側でのみ選択肢に出す。`Foreach` の中であれば、`If` の分岐など何段ネストしていても選択できる。
+
 いずれも制御を移す終端アクションであり、後続のアクションへは進まない。C# の実装では `GotoAction` / `EndWorkflow` / `EndConversation` などと同じ「終端アクション」として扱われる。
 
 ### `EndConversation`

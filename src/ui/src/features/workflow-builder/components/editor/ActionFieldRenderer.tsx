@@ -6,6 +6,7 @@ import type {
   WorkflowStyle,
 } from "../../types";
 import { KeyValueRows } from "./KeyValueRows";
+import { nodeId } from "../../domain/nodeIds";
 
 /** Action fields the tool and HTTP editors render as a plain text input. */
 type TextFieldKey =
@@ -22,7 +23,7 @@ type TextFieldKey =
 
 type ActionFieldRendererProps = {
   action: ActionModel;
-  actionKindOptions: ActionKind[];
+  kindsFor: (nodeId: string | null) => ActionKind[];
   onUpdateAction: <K extends keyof ActionModel>(
     id: string,
     field: K,
@@ -45,7 +46,7 @@ type ActionFieldRendererProps = {
 
 export function ActionFieldRenderer({
   action,
-  actionKindOptions,
+  kindsFor,
   onUpdateAction,
   onAddAction,
   onAddCondition,
@@ -131,11 +132,13 @@ export function ActionFieldRenderer({
             }}
           >
             <option value="">+ Then action</option>
-            {actionKindOptions.map((kind) => (
-              <option key={kind} value={kind}>
-                {kind}
-              </option>
-            ))}
+            {kindsFor(nodeId.branchAdder(action.id, { branch: "then" })).map(
+              (kind) => (
+                <option key={kind} value={kind}>
+                  {kind}
+                </option>
+              ),
+            )}
           </select>
         </div>
 
@@ -166,11 +169,13 @@ export function ActionFieldRenderer({
             }}
           >
             <option value="">+ Else action</option>
-            {actionKindOptions.map((kind) => (
-              <option key={kind} value={kind}>
-                {kind}
-              </option>
-            ))}
+            {kindsFor(nodeId.branchAdder(action.id, { branch: "else" })).map(
+              (kind) => (
+                <option key={kind} value={kind}>
+                  {kind}
+                </option>
+              ),
+            )}
           </select>
         </div>
 
@@ -240,7 +245,12 @@ export function ActionFieldRenderer({
                 }}
               >
                 <option value="">+ Condition action</option>
-                {actionKindOptions.map((kind) => (
+                {kindsFor(
+                  nodeId.branchAdder(action.id, {
+                    branch: "condition",
+                    index: conditionIndex,
+                  }),
+                ).map((kind) => (
                   <option key={kind} value={kind}>
                     {kind}
                   </option>
@@ -560,11 +570,13 @@ export function ActionFieldRenderer({
             }}
           >
             <option value="">+ Loop action</option>
-            {actionKindOptions.map((kind) => (
-              <option key={kind} value={kind}>
-                {kind}
-              </option>
-            ))}
+            {kindsFor(nodeId.branchAdder(action.id, { branch: "loop" })).map(
+              (kind) => (
+                <option key={kind} value={kind}>
+                  {kind}
+                </option>
+              ),
+            )}
           </select>
         </div>
       </>

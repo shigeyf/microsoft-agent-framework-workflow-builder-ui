@@ -8,10 +8,23 @@ import type { ActionKind, WorkflowStyle } from "../types";
  */
 const PYTHON_ONLY: ActionKind[] = ["SetValue"];
 
+/** Both runtimes reject these outside a Foreach body. */
+const LOOP_ONLY: ActionKind[] = ["BreakLoop", "ContinueLoop"];
+
 export function kindsForStyle(style: WorkflowStyle): ActionKind[] {
   return style === "python"
     ? actionKindOptions
     : actionKindOptions.filter((kind) => !PYTHON_ONLY.includes(kind));
+}
+
+/** Kinds offered for a destination, which may or may not be inside a loop. */
+export function kindsForDestination(
+  style: WorkflowStyle,
+  insideLoop: boolean,
+): ActionKind[] {
+  return kindsForStyle(style).filter(
+    (kind) => insideLoop || !LOOP_ONLY.includes(kind),
+  );
 }
 
 export function isKindAvailable(

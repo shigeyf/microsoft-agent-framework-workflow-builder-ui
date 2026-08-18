@@ -1,5 +1,32 @@
 import type { ActionModel } from "../types";
+import { branchesOf } from "./branches";
 import type { BranchRef } from "./nodeIds";
+
+/** True when the list holding `id` sits inside a Foreach body. */
+export function isInsideLoop(actions: ActionModel[], id: string): boolean {
+  const walk = (list: ActionModel[], inLoop: boolean): boolean | null => {
+    for (const action of list) {
+      if (action.id === id) {
+        return inLoop;
+      }
+
+      for (const branch of branchesOf(action)) {
+        const found = walk(
+          branch.actions,
+          inLoop || branch.ref.branch === "loop",
+        );
+
+        if (found !== null) {
+          return found;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  return walk(actions, false) ?? false;
+}
 
 /**
  * Every recursion over then / else / conditions / loop body lives here.

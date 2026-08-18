@@ -5,7 +5,7 @@ type WorkflowMetaSectionProps = {
   description: string;
   triggerKind: string;
   style: "python" | "csharp";
-  actionKindOptions: ActionKind[];
+  kindsFor: (nodeId: string | null) => ActionKind[];
   inputs: InputParam[];
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
@@ -28,7 +28,7 @@ export function WorkflowMetaSection({
   description,
   triggerKind,
   style,
-  actionKindOptions,
+  kindsFor,
   inputs,
   onNameChange,
   onDescriptionChange,
@@ -116,7 +116,7 @@ export function WorkflowMetaSection({
           }}
         >
           <option value="">+ Action</option>
-          {actionKindOptions.map((kind) => (
+          {kindsFor(null).map((kind) => (
             <option key={kind} value={kind}>
               {kind}
             </option>

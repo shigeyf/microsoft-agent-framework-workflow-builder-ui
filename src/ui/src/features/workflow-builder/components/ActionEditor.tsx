@@ -4,7 +4,7 @@ import { ActionFieldRenderer } from "./editor/ActionFieldRenderer";
 
 type ActionEditorProps = {
   action: ActionModel;
-  actionKindOptions: Array<ActionKind>;
+  kindsFor: (nodeId: string | null) => ActionKind[];
   onUpdateAction: <K extends keyof ActionModel>(
     id: string,
     field: K,
@@ -27,7 +27,7 @@ type ActionEditorProps = {
 
 export function ActionEditor({
   action,
-  actionKindOptions,
+  kindsFor,
   onUpdateAction,
   onAddAction,
   onAddCondition,
@@ -60,7 +60,7 @@ export function ActionEditor({
 
       <ActionFieldRenderer
         action={action}
-        actionKindOptions={actionKindOptions}
+        kindsFor={kindsFor}
         gotoTargets={gotoTargets}
         style={style}
         onUpdateAction={onUpdateAction}
@@ -81,7 +81,7 @@ export function ActionEditor({
           }}
         >
           <option value="">+ Action</option>
-          {actionKindOptions.map((kind) => (
+          {kindsFor(action.id).map((kind) => (
             <option key={kind} value={kind}>
               {kind}
             </option>

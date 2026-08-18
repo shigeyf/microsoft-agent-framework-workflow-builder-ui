@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canChangeStyle, isKindAvailable, kindsForStyle } from "./styles";
+import {
+  canChangeStyle,
+  isKindAvailable,
+  kindsForDestination,
+  kindsForStyle,
+} from "./styles";
 
 describe("kindsForStyle", () => {
   it("offers SetValue only for python", () => {
@@ -18,6 +23,19 @@ describe("kindsForStyle", () => {
     );
 
     expect(missing).toEqual(["SetValue"]);
+  });
+});
+
+describe("kindsForDestination", () => {
+  it("offers the loop controls only inside a loop", () => {
+    expect(kindsForDestination("python", false)).not.toContain("BreakLoop");
+    expect(kindsForDestination("python", false)).not.toContain("ContinueLoop");
+    expect(kindsForDestination("python", true)).toContain("BreakLoop");
+    expect(kindsForDestination("python", true)).toContain("ContinueLoop");
+  });
+
+  it("still applies the style filter inside a loop", () => {
+    expect(kindsForDestination("csharp", true)).not.toContain("SetValue");
   });
 });
 
