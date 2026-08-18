@@ -1,6 +1,6 @@
 import type { ActionModel } from "../types";
 import { branchesOf, isBranchAction } from "../domain/branches";
-import { branchLabelPosition } from "./buildNodes";
+import { branchLabelPosition, subtreeWidth } from "./buildNodes";
 import { LAYOUT } from "./layout";
 
 export type AutoLayoutResult = {
@@ -28,31 +28,26 @@ function layoutSequence(actions: ActionModel[], x: number, y: number): number {
   for (const action of actions) {
     action.x = cursor;
     action.y = y;
-    cursor += layoutAction(action) + LAYOUT.branchGapX;
+    layoutBranches(action);
+    cursor += subtreeWidth(action) + LAYOUT.branchGapX;
   }
 
   return actions.length === 0 ? 0 : cursor - x - LAYOUT.branchGapX;
 }
 
-/** Places the branches of one action and returns its own width. */
-function layoutAction(action: ActionModel): number {
+/** Places the rows of a branch action; the action itself is already positioned. */
+function layoutBranches(action: ActionModel): void {
   if (!isBranchAction(action)) {
-    return LAYOUT.node.width;
+    return;
   }
-
-  const labelRight = LAYOUT.branchLabelOffsetX + LAYOUT.branchLabel.width;
-  let widest = labelRight;
 
   branchesOf(action).forEach((branch, rowIndex) => {
     const label = branchLabelPosition(action, rowIndex);
-    const rowX = label.x + LAYOUT.branchLabel.width + LAYOUT.branchGapX;
-    const rowY = label.y - (LAYOUT.node.height - LAYOUT.branchLabel.height) / 2;
-    const width = layoutSequence(branch.actions, rowX, rowY);
-    const right = rowX - (action.x ?? 0) + width;
 
-    widest = Math.max(widest, right);
+    layoutSequence(
+      branch.actions,
+      label.x + LAYOUT.branchLabel.width + LAYOUT.branchGapX,
+      label.y - (LAYOUT.node.height - LAYOUT.branchLabel.height) / 2,
+    );
   });
-
-  // Leave room for the trailing "+" button that ends every branch row.
-  return widest + LAYOUT.branchGapX + LAYOUT.adderSize;
 }

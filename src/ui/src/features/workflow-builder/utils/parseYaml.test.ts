@@ -12,6 +12,8 @@ import studentTeacher from "./__fixtures__/student_teacher.yaml?raw";
 import { parseWorkflowYaml } from "./parseYaml";
 import { buildYaml } from "./yaml";
 import { flattenActions } from "../domain/actionTree";
+import { branchesOf } from "../domain/branches";
+import { nodeId } from "../domain/nodeIds";
 import { autoLayout } from "../graph/autoLayout";
 import { buildNodes } from "../graph/buildNodes";
 import { buildEdges } from "../graph/buildEdges";
@@ -203,6 +205,83 @@ describe("parseWorkflowYaml with official Agent Framework samples", () => {
       expect(dropped, `${id} lost ${dropped.join(", ")}`).toEqual([]);
     }
   });
+
+  it.each(SAMPLE_NAMES)(
+    "keeps %s container frames around their own subtree",
+    (sample) => {
+      const parsed = parseWorkflowYaml(readSample(sample));
+      const actions = autoLayout(parsed.actions).actions;
+      const nodes = buildNodes(actions, [], {
+        start: { x: 0, y: 0 },
+        output: { x: 0, y: 0 },
+      });
+      const cards = nodes.filter((node) => node.kind === "process");
+
+      for (const branch of flattenActions(actions).filter(
+        (action) => action.then || action.conditions,
+      )) {
+        const frame = nodes.find((node) => node.id === `${branch.id}:box`);
+        if (!frame) {
+          continue;
+        }
+
+        const inside = new Set(
+          flattenActions([branch]).map((action) => action.id),
+        );
+        const intruders = cards
+          .filter((card) => !inside.has(card.id))
+          .filter(
+            (card) =>
+              card.x < frame.x + (frame.width ?? 0) &&
+              frame.x < card.x + (card.width ?? 0) &&
+              card.y < frame.y + (frame.height ?? 0) &&
+              frame.y < card.y + (card.height ?? 0),
+          )
+          .map((card) => card.id);
+
+        expect(
+          intruders,
+          `${branch.id} frame covers ${intruders.join(", ")}`,
+        ).toEqual([]);
+      }
+    },
+  );
+
+  it.each(SAMPLE_NAMES)(
+    "puts every %s branch adder outside nested frames",
+    (sample) => {
+      const parsed = parseWorkflowYaml(readSample(sample));
+      const actions = autoLayout(parsed.actions).actions;
+      const nodes = buildNodes(actions, [], {
+        start: { x: 0, y: 0 },
+        output: { x: 0, y: 0 },
+      });
+      const byId = new Map(nodes.map((node) => [node.id, node]));
+
+      for (const parent of flattenActions(actions)) {
+        for (const branch of branchesOf(parent)) {
+          const adder = byId.get(nodeId.branchAdder(parent.id, branch.ref));
+          if (!adder) {
+            continue;
+          }
+
+          const nestedFrames = flattenActions(branch.actions)
+            .map((action) => byId.get(nodeId.container(action.id)))
+            .filter((frame) => frame !== undefined);
+
+          for (const frame of nestedFrames) {
+            const overlaps =
+              adder.x < frame.x + (frame.width ?? 0) &&
+              frame.x < adder.x + (adder.width ?? 0) &&
+              adder.y < frame.y + (frame.height ?? 0) &&
+              frame.y < adder.y + (adder.height ?? 0);
+
+            expect(overlaps, `${adder.id} sits inside ${frame.id}`).toBe(false);
+          }
+        }
+      }
+    },
+  );
 
   it("detects the python style and typed inputs", () => {
     const parsed = parseWorkflowYaml(readSample("conditional_workflow"));

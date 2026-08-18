@@ -72,20 +72,49 @@ export function branchLabelPosition(
   };
 }
 
+/**
+ * Horizontal space an action needs, counting every branch nested inside it.
+ * Derived from the tree shape alone so it never depends on stored coordinates.
+ */
+export function subtreeWidth(action: ActionModel): number {
+  if (!isBranchAction(action)) {
+    return LAYOUT.node.width;
+  }
+
+  const labelRight = LAYOUT.branchLabelOffsetX + LAYOUT.branchLabel.width;
+  const widest = branchesOf(action).reduce(
+    (right, branch) =>
+      Math.max(
+        right,
+        labelRight + LAYOUT.branchGapX + branchRowWidth(branch.actions),
+      ),
+    labelRight,
+  );
+
+  // Every branch row ends with a "+" button that has to fit inside the frame.
+  return widest + LAYOUT.branchGapX + LAYOUT.adderSize;
+}
+
+export function branchRowWidth(actions: ActionModel[]): number {
+  return actions.reduce(
+    (total, action, index) =>
+      total + (index > 0 ? LAYOUT.branchGapX : 0) + subtreeWidth(action),
+    0,
+  );
+}
+
 /** Where the next action of a branch should be placed. */
 export function branchSlotPosition(
   action: ActionModel,
   rowIndex: number,
-  slotIndex: number,
+  preceding: ActionModel[],
 ): Position {
   const label = branchLabelPosition(action, rowIndex);
+  const offset =
+    preceding.length > 0 ? branchRowWidth(preceding) + LAYOUT.branchGapX : 0;
 
   return {
-    x:
-      label.x +
-      LAYOUT.branchLabel.width +
-      LAYOUT.branchGapX +
-      slotIndex * (LAYOUT.node.width + LAYOUT.branchGapX),
+    x: label.x + LAYOUT.branchLabel.width + LAYOUT.branchGapX + offset,
     y: label.y - (LAYOUT.node.height - LAYOUT.branchLabel.height) / 2,
   };
 }
@@ -172,7 +201,7 @@ function buildBranchNodes(
       const lastAction = branch.actions.at(-1);
       const anchor = lastAction
         ? {
-            x: (lastAction.x ?? 0) + LAYOUT.node.width,
+            x: (lastAction.x ?? 0) + subtreeWidth(lastAction),
             y: (lastAction.y ?? 0) + LAYOUT.node.height / 2,
           }
         : {

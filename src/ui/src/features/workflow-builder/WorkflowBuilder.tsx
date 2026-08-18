@@ -238,14 +238,14 @@ export function WorkflowBuilder() {
 
     if (parent && isBranchAction(parent) && branchRef) {
       const position = destination?.insertAtHead ? "head" : "tail";
-      const slotIndex =
-        position === "head" ? 0 : branchActionsOf(parent, branchRef).length;
+      const preceding =
+        position === "head" ? [] : branchActionsOf(parent, branchRef);
       const branchAction = {
         ...nextAction,
         ...branchSlotPosition(
           parent,
           branchRowIndex(parent, branchRef),
-          slotIndex,
+          preceding,
         ),
       };
 
