@@ -84,6 +84,14 @@ export function WorkflowHeader({
           </select>
         </label>
 
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onNewWorkflow}
+        >
+          New workflow
+        </button>
+
         <label className="segmented-control">
           <span>Sample :</span>
           <select
@@ -109,14 +117,6 @@ export function WorkflowHeader({
           hidden
           onChange={handleFileChange}
         />
-
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={onNewWorkflow}
-        >
-          New workflow
-        </button>
 
         <button
           type="button"
