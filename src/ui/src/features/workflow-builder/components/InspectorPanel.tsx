@@ -1,4 +1,5 @@
 import type { ActionKind, ActionModel, InputParam } from "../types";
+import { findAction, flattenActions } from "../domain/actionTree";
 import { ActionEditor } from "./ActionEditor";
 import { WorkflowMetaSection } from "./sections/WorkflowMetaSection";
 
@@ -46,29 +47,6 @@ type InspectorPanelProps = {
   onRemoveInput: (index: number) => void;
   onSelectInput: (name: string) => void;
 };
-
-function findAction(actions: ActionModel[], id: string): ActionModel | null {
-  for (const action of actions) {
-    if (action.id === id) {
-      return action;
-    }
-
-    const nested = findAction(
-      [
-        ...(action.then ?? []),
-        ...(action.else ?? []),
-        ...(action.conditions?.flatMap((condition) => condition.actions) ?? []),
-      ],
-      id,
-    );
-
-    if (nested) {
-      return nested;
-    }
-  }
-
-  return null;
-}
 
 export function InspectorPanel({
   target,
@@ -163,6 +141,9 @@ export function InspectorPanel({
           <ActionEditor
             action={action}
             actionKindOptions={actionKindOptions}
+            gotoTargets={flattenActions(actions)
+              .map((item) => item.id)
+              .filter((id) => id !== action.id)}
             onUpdateAction={onUpdateAction}
             onAddAction={onAddAction}
             onAddCondition={onAddCondition}

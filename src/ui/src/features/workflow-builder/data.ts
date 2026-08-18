@@ -97,6 +97,32 @@ export function createAction(kind: ActionKind): ActionModel {
         variable: "Local.feedback",
         default: "No feedback",
       };
+    case "GotoAction":
+      return {
+        id,
+        kind,
+        displayName: "Go to action",
+        x: 40,
+        y: 80,
+        actionId: "",
+      };
+    case "CreateConversation":
+      return {
+        id,
+        kind,
+        displayName: "Create conversation",
+        x: 40,
+        y: 80,
+        conversationId: "Local.NewConversationId",
+      };
+    case "EndWorkflow":
+      return {
+        id,
+        kind,
+        displayName: "End workflow",
+        x: 40,
+        y: 80,
+      };
     default:
       return {
         id,

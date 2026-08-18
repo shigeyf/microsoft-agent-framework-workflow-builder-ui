@@ -401,6 +401,7 @@ export function WorkflowBuilder() {
         onStyleChange={setStyle}
         onCopyYaml={copyYaml}
         onImportYaml={importYaml}
+        onImportFailed={setImportError}
       />
 
       {importError ? (

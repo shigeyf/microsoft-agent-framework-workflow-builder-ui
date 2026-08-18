@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { fetchWorkflowSample, workflowSamples } from "../samples";
 import type { WorkflowStyle } from "../types";
 
 type WorkflowHeaderProps = {
@@ -6,6 +7,7 @@ type WorkflowHeaderProps = {
   onStyleChange: (value: WorkflowStyle) => void;
   onCopyYaml: () => void | Promise<void>;
   onImportYaml: (text: string) => void;
+  onImportFailed: (message: string) => void;
 };
 
 export function WorkflowHeader({
@@ -13,8 +15,10 @@ export function WorkflowHeader({
   onStyleChange,
   onCopyYaml,
   onImportYaml,
+  onImportFailed,
 }: WorkflowHeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loadingSample, setLoadingSample] = useState("");
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -24,6 +28,27 @@ export function WorkflowHeader({
 
     if (file) {
       onImportYaml(await file.text());
+    }
+  };
+
+  const handleSampleChange = async (
+    event: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const url = event.target.value;
+    event.target.value = "";
+
+    if (!url) {
+      return;
+    }
+
+    setLoadingSample(url);
+
+    try {
+      onImportYaml(await fetchWorkflowSample(url));
+    } catch (error) {
+      onImportFailed(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoadingSample("");
     }
   };
 
@@ -45,6 +70,24 @@ export function WorkflowHeader({
           >
             <option value="python">Python</option>
             <option value="csharp">C#</option>
+          </select>
+        </label>
+
+        <label className="segmented-control">
+          <span>Sample :</span>
+          <select
+            value=""
+            disabled={loadingSample !== ""}
+            onChange={handleSampleChange}
+          >
+            <option value="">
+              {loadingSample ? "Loading…" : "Load a sample"}
+            </option>
+            {workflowSamples.map((sample) => (
+              <option key={sample.id} value={sample.url}>
+                {sample.label}
+              </option>
+            ))}
           </select>
         </label>
 

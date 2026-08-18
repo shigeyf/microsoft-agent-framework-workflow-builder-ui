@@ -18,6 +18,8 @@ type ActionFieldRendererProps = {
     },
   ) => void;
   onAddCondition: (actionId: string) => void;
+  /** Ids GotoAction is allowed to jump to. */
+  gotoTargets: string[];
 };
 
 export function ActionFieldRenderer({
@@ -26,6 +28,7 @@ export function ActionFieldRenderer({
   onUpdateAction,
   onAddAction,
   onAddCondition,
+  gotoTargets,
 }: ActionFieldRendererProps) {
   if (action.kind === "SetValue" || action.kind === "SetVariable") {
     return (
@@ -304,6 +307,60 @@ export function ActionFieldRenderer({
           />
         </label>
       </>
+    );
+  }
+
+  if (action.kind === "GotoAction") {
+    const target = action.actionId ?? "";
+    const isDangling = target !== "" && !gotoTargets.includes(target);
+
+    return (
+      <>
+        <label>
+          <span>Target action</span>
+          <select
+            value={target}
+            onChange={(event) =>
+              onUpdateAction(action.id, "actionId", event.target.value)
+            }
+          >
+            <option value="">(select an action)</option>
+            {isDangling ? <option value={target}>{target}</option> : null}
+            {gotoTargets.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        </label>
+        {isDangling ? (
+          <p className="field-note field-note-warning">
+            {target} は存在しないアクション ID です。
+          </p>
+        ) : null}
+      </>
+    );
+  }
+
+  if (action.kind === "CreateConversation") {
+    return (
+      <label>
+        <span>Conversation ID variable</span>
+        <input
+          value={action.conversationId ?? ""}
+          onChange={(event) =>
+            onUpdateAction(action.id, "conversationId", event.target.value)
+          }
+        />
+      </label>
+    );
+  }
+
+  if (action.kind === "EndWorkflow") {
+    return (
+      <p className="field-note">
+        ワークフローを終了します。設定項目はありません。
+      </p>
     );
   }
 

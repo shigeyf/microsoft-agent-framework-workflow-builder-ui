@@ -20,6 +20,7 @@ type ActionEditorProps = {
   ) => void;
   onAddCondition: (actionId: string) => void;
   onRemoveAction: (id: string) => void;
+  gotoTargets: string[];
 };
 
 export function ActionEditor({
@@ -29,6 +30,7 @@ export function ActionEditor({
   onAddAction,
   onAddCondition,
   onRemoveAction,
+  gotoTargets,
 }: ActionEditorProps) {
   return (
     <div className="section-block editor-block">
@@ -56,6 +58,7 @@ export function ActionEditor({
       <ActionFieldRenderer
         action={action}
         actionKindOptions={actionKindOptions}
+        gotoTargets={gotoTargets}
         onUpdateAction={onUpdateAction}
         onAddAction={onAddAction}
         onAddCondition={onAddCondition}

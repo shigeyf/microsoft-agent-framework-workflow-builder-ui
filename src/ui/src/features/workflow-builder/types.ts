@@ -76,4 +76,7 @@ export const actionKindOptions: ActionKind[] = [
   "InvokeAzureAgent",
   "Question",
   "RequestExternalInput",
+  "GotoAction",
+  "CreateConversation",
+  "EndWorkflow",
 ];

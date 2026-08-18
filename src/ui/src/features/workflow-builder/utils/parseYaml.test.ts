@@ -189,9 +189,15 @@ describe("parseWorkflowYaml with official Agent Framework samples", () => {
   });
 
   it("reports action kinds the builder cannot edit", () => {
-    const parsed = parseWorkflowYaml(readSample("student_teacher"));
+    expect(
+      parseWorkflowYaml(readSample("student_teacher")).unsupportedKinds,
+    ).toEqual([]);
 
-    expect(parsed.unsupportedKinds).toContain("GotoAction");
+    const parsed = parseWorkflowYaml(
+      "name: w\nactions:\n  - kind: Foreach\n    source: =Local.items\n",
+    );
+
+    expect(parsed.unsupportedKinds).toEqual(["Foreach"]);
   });
 
   it("rejects yaml that is not a workflow", () => {
