@@ -103,22 +103,6 @@ export function branchRowWidth(actions: ActionModel[]): number {
   );
 }
 
-/** Where the next action of a branch should be placed. */
-export function branchSlotPosition(
-  action: ActionModel,
-  rowIndex: number,
-  preceding: ActionModel[],
-): Position {
-  const label = branchLabelPosition(action, rowIndex);
-  const offset =
-    preceding.length > 0 ? branchRowWidth(preceding) + LAYOUT.branchGapX : 0;
-
-  return {
-    x: label.x + LAYOUT.branchLabel.width + LAYOUT.branchGapX + offset,
-    y: label.y - (LAYOUT.node.height - LAYOUT.branchLabel.height) / 2,
-  };
-}
-
 function containerLabelOf(action: ActionModel): string {
   return action.kind.toUpperCase();
 }

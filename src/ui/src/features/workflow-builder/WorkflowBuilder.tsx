@@ -12,11 +12,7 @@ import {
   translateSubtree,
   updateAction as updateActionInTree,
 } from "./domain/actionTree";
-import {
-  branchActionsOf,
-  branchRowIndex,
-  isBranchAction,
-} from "./domain/branches";
+import { isBranchAction } from "./domain/branches";
 import {
   OUTPUT_NODE_ID,
   START_NODE_ID,
@@ -24,7 +20,6 @@ import {
   type BranchRef,
 } from "./domain/nodeIds";
 import { canChangeStyle, kindsForStyle } from "./domain/styles";
-import { branchSlotPosition } from "./graph/buildNodes";
 import { autoLayout } from "./graph/autoLayout";
 import { LAYOUT, OVERLAY_CASCADE } from "./graph/layout";
 import { useWorkflowGraph } from "./graph/useWorkflowGraph";
@@ -98,6 +93,20 @@ export function WorkflowBuilder() {
     nodePositions,
   );
 
+  /** Applies a structural change and re-flows the canvas so nothing overlaps. */
+  const commitActions = (next: ActionModel[]) => {
+    const laid = autoLayout(next);
+
+    setActions(laid.actions);
+    setNodePositions((previous) => ({
+      ...previous,
+      output: {
+        x: laid.right + LAYOUT.branchGapX,
+        y: LAYOUT.startPosition.y,
+      },
+    }));
+  };
+
   const moveBranchContainer = (
     actionId: string,
     deltaX: number,
@@ -117,8 +126,8 @@ export function WorkflowBuilder() {
   };
 
   const removeCondition = (actionId: string, conditionIndex: number) => {
-    setActions((previous) =>
-      updateActionInTree(previous, actionId, (action) => ({
+    commitActions(
+      updateActionInTree(actions, actionId, (action) => ({
         ...action,
         conditions: (action.conditions ?? []).filter(
           (_, index) => index !== conditionIndex,
@@ -217,14 +226,8 @@ export function WorkflowBuilder() {
     },
     anchor?: { x: number; y: number },
   ) => {
-    const newAction = createAction(kind, style);
-    const grid = LAYOUT.newActionGrid;
-    const nextIndex = actions.length;
-    const nextAction = {
-      ...newAction,
-      x: grid.originX + (nextIndex % grid.columns) * grid.stepX,
-      y: grid.originY + Math.floor(nextIndex / grid.columns) * grid.stepY,
-    };
+    // Coordinates are assigned by the relayout below, so none are set here.
+    const nextAction = createAction(kind, style);
 
     const parent = destination?.parentId
       ? findAction(actions, destination.parentId)
@@ -237,60 +240,37 @@ export function WorkflowBuilder() {
           : null;
 
     if (parent && isBranchAction(parent) && branchRef) {
-      const position = destination?.insertAtHead ? "head" : "tail";
-      const preceding =
-        position === "head" ? [] : branchActionsOf(parent, branchRef);
-      const branchAction = {
-        ...nextAction,
-        ...branchSlotPosition(
-          parent,
-          branchRowIndex(parent, branchRef),
-          preceding,
-        ),
-      };
-
-      setActions((previous) =>
+      commitActions(
         insertIntoBranch(
-          previous,
+          actions,
           parent.id,
           branchRef,
-          branchAction,
-          position,
+          nextAction,
+          destination?.insertAtHead ? "head" : "tail",
         ),
       );
-      selectAction(branchAction.id, anchor);
+      selectAction(nextAction.id, anchor);
       return;
     }
 
     const insertAfterId = destination?.insertAfterId;
     if (insertAfterId) {
-      const targetNode =
+      commitActions(
         insertAfterId === START_NODE_ID
-          ? null
-          : findAction(actions, insertAfterId);
-      const insertedAction = {
-        ...nextAction,
-        x: (targetNode?.x ?? nextAction.x) + LAYOUT.insertOffset.x,
-        y: (targetNode?.y ?? nextAction.y) + LAYOUT.insertOffset.y,
-      };
-
-      setActions((previous) =>
-        insertAfterId === START_NODE_ID
-          ? [insertedAction, ...previous]
-          : insertAfter(previous, insertAfterId, insertedAction),
+          ? [nextAction, ...actions]
+          : insertAfter(actions, insertAfterId, nextAction),
       );
-
-      selectAction(insertedAction.id, anchor);
+      selectAction(nextAction.id, anchor);
       return;
     }
 
-    setActions((previous) => [...previous, nextAction]);
+    commitActions([...actions, nextAction]);
     selectAction(nextAction.id, anchor);
   };
 
   const addCondition = (actionId: string) => {
-    setActions((previous) =>
-      updateActionInTree(previous, actionId, (action) => ({
+    commitActions(
+      updateActionInTree(actions, actionId, (action) => ({
         ...action,
         conditions: [
           ...(action.conditions ?? []),
@@ -301,7 +281,7 @@ export function WorkflowBuilder() {
   };
 
   const removeAction = (id: string) => {
-    setActions((previous) => removeActionFromTree(previous, id));
+    commitActions(removeActionFromTree(actions, id));
     closeInspector();
   };
 
@@ -378,16 +358,11 @@ export function WorkflowBuilder() {
     setDescription(parsed.description);
     setTriggerKind(parsed.triggerKind);
     setInputs(parsed.inputs);
-
-    const positioned = autoLayout(parsed.actions);
-    setActions(positioned.actions);
-    setNodePositions({
+    commitActions(parsed.actions);
+    setNodePositions((previous) => ({
+      ...previous,
       start: LAYOUT.startPosition,
-      output: {
-        x: positioned.right + LAYOUT.branchGapX,
-        y: LAYOUT.startPosition.y,
-      },
-    });
+    }));
     setCollapsedActionIds([]);
     closeInspector();
     setImportError(importWarning(parsed));
@@ -435,6 +410,7 @@ export function WorkflowBuilder() {
         onImportYaml={importYaml}
         onImportFailed={setImportError}
         onNewWorkflow={resetWorkflow}
+        onAutoArrange={() => commitActions(actions)}
       />
 
       {importError ? (

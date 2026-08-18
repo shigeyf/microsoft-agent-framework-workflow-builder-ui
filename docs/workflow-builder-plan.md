@@ -24,6 +24,7 @@ Microsoft Agent Framework の宣言型ワークフロー仕様をもとに、YAM
 - キャンバス上でのアクション追加・削除・編集・移動
 - `If` と `ConditionGroup` をコンテナとして描画し、内部に分岐を保持
 - コンテナの折りたたみと展開
+- アクションの追加・削除のたびに自動整列し、カードが重ならない。ドラッグ後は `Auto arrange` で整列し直せる
 - 分岐末尾の `+` からの追加、結線上の `+` からの挿入
 
 ### 3.2 対応アクション
@@ -141,7 +142,6 @@ src/ui/src/features/workflow-builder/
 
 - `SetMultipleVariables` / `ParseValue` / `EndConversation` などの専用フォーム。現状は `extra` で内容を保持するのみ
 - C# 専用アクション（会話操作など）の対応
-- 手動で追加したアクションの自動整列
 - `GraphCanvas.tsx` の分割
 
 ## 8. 受け入れ基準

@@ -11,7 +11,6 @@ export const LAYOUT = {
   branchLabelOffsetX: 270,
   container: { padding: 28, headerHeight: 30 },
   /** Offset applied when inserting after an existing action. */
-  insertOffset: { x: 220, y: 120 },
   /** Fallback grid used when an action is appended without a reference node. */
   newActionGrid: {
     columns: 3,

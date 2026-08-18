@@ -11,6 +11,7 @@ type WorkflowHeaderProps = {
   onImportYaml: (text: string) => void;
   onImportFailed: (message: string) => void;
   onNewWorkflow: () => void;
+  onAutoArrange: () => void;
 };
 
 export function WorkflowHeader({
@@ -21,6 +22,7 @@ export function WorkflowHeader({
   onImportYaml,
   onImportFailed,
   onNewWorkflow,
+  onAutoArrange,
 }: WorkflowHeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadingSample, setLoadingSample] = useState("");
@@ -117,6 +119,14 @@ export function WorkflowHeader({
           hidden
           onChange={handleFileChange}
         />
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onAutoArrange}
+        >
+          Auto arrange
+        </button>
 
         <button
           type="button"
