@@ -171,6 +171,21 @@ function renderRequireApproval(action: ActionModel, indent: string): string[] {
     : [];
 }
 
+/**
+ * A bare `key:` parses as null and the runtime rejects it, so a required list
+ * that happens to be empty is written as an explicit `[]`.
+ */
+function renderRequiredList(
+  actions: ActionModel[],
+  key: string,
+  indent: string,
+  childIndentLevel: number,
+): string[] {
+  return actions.length === 0
+    ? [`${indent}${key}: []`]
+    : [`${indent}${key}:`, ...renderActionList(actions, childIndentLevel)];
+}
+
 function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
   const indent = " ".repeat(indentLevel);
 
@@ -209,33 +224,45 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
           ...field(`${indent}  `, "condition", action.condition ?? "=true"),
         );
 
-        const thenActions =
-          action.then && action.then.length > 0 ? action.then : [];
-        const elseActions =
-          action.else && action.else.length > 0 ? action.else : [];
+        lines.push(
+          ...renderRequiredList(
+            action.then ?? [],
+            "then",
+            `${indent}  `,
+            indentLevel + 4,
+          ),
+        );
 
-        if (thenActions.length > 0) {
-          lines.push(`${indent}  then:`);
-          lines.push(...renderActionList(thenActions, indentLevel + 4));
-        }
-
-        if (elseActions.length > 0) {
+        if (action.else && action.else.length > 0) {
           lines.push(`${indent}  else:`);
-          lines.push(...renderActionList(elseActions, indentLevel + 4));
+          lines.push(...renderActionList(action.else, indentLevel + 4));
         }
         break;
       }
       case "ConditionGroup": {
-        lines.push(`${indent}  conditions:`);
-        for (const condition of action.conditions ?? []) {
+        const conditions = action.conditions ?? [];
+
+        if (conditions.length === 0) {
+          lines.push(`${indent}  conditions: []`);
+        } else {
+          lines.push(`${indent}  conditions:`);
+        }
+
+        for (const condition of conditions) {
           const head = field(`${indent}    `, "condition", condition.condition);
           lines.push(`${indent}    - ${head[0].trimStart()}`);
           lines.push(...head.slice(1).map((line) => `  ${line}`));
           if (condition.id) {
             lines.push(`${indent}      id: ${yamlScalar(condition.id)}`);
           }
-          lines.push(`${indent}      actions:`);
-          lines.push(...renderActionList(condition.actions, indentLevel + 8));
+          lines.push(
+            ...renderRequiredList(
+              condition.actions,
+              "actions",
+              `${indent}      `,
+              indentLevel + 8,
+            ),
+          );
         }
 
         if (action.else && action.else.length > 0) {
@@ -400,8 +427,9 @@ export function buildYaml(
       "trigger:",
       `  kind: ${triggerKind}`,
       `  id: ${name}`,
-      "  actions:",
-      indentedActions,
+      ...(actions.length === 0
+        ? ["  actions: []"]
+        : ["  actions:", indentedActions]),
     ].join("\n");
   }
 
@@ -411,7 +439,6 @@ export function buildYaml(
     ...(description ? [`description: ${yamlScalar(description)}`] : []),
     ...(inputs.length > 0 ? ["", "inputs:", inputBlock] : []),
     "",
-    "actions:",
-    actionsYaml,
+    ...(actions.length === 0 ? ["actions: []"] : ["actions:", actionsYaml]),
   ].join("\n");
 }

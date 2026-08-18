@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import { buildYaml } from "./yaml";
 import type { ActionModel, InputParam } from "../types";
 
@@ -32,7 +33,44 @@ describe("buildYaml", () => {
 
     expect(yaml).not.toContain("description:");
     expect(yaml).not.toContain("inputs:");
-    expect(yaml.trim()).toBe("name: new-workflow\n\nactions:".trim());
+    expect(yaml.trim()).toBe("name: new-workflow\n\nactions: []".trim());
+  });
+
+  it("never leaves a required list null", () => {
+    const emptyBranches: ActionModel[] = [
+      { id: "if_1", kind: "If", displayName: "If", then: [], else: [] },
+      {
+        id: "group_1",
+        kind: "ConditionGroup",
+        displayName: "Group",
+        conditions: [{ condition: "=true", actions: [] }],
+      },
+      {
+        id: "group_2",
+        kind: "ConditionGroup",
+        displayName: "Group",
+        conditions: [],
+      },
+    ];
+
+    for (const style of ["python", "csharp"] as const) {
+      const document = parse(
+        buildYaml(style, "wf", "", "OnConversationStart", noInputs, [
+          ...emptyBranches,
+        ]),
+      );
+      const actions =
+        style === "python" ? document.actions : document.trigger.actions;
+
+      expect(actions[0].then).toEqual([]);
+      expect(actions[1].conditions[0].actions).toEqual([]);
+      expect(actions[2].conditions).toEqual([]);
+      expect(
+        parse(buildYaml(style, "wf", "", "OnConversationStart", noInputs, [])),
+      ).toMatchObject(
+        style === "python" ? { actions: [] } : { trigger: { actions: [] } },
+      );
+    }
   });
 
   it("renders declared inputs", () => {
@@ -79,7 +117,7 @@ describe("buildYaml", () => {
     expect(yaml).toContain("id: a2");
   });
 
-  it("omits If branches that have no actions", () => {
+  it("writes an empty then explicitly and omits the optional else", () => {
     const yaml = yamlOf([
       {
         id: "if_1",
@@ -91,7 +129,7 @@ describe("buildYaml", () => {
       },
     ]);
 
-    expect(yaml).not.toContain("then:");
+    expect(yaml).toContain("then: []");
     expect(yaml).not.toContain("else:");
   });
 
