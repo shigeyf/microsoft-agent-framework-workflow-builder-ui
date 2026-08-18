@@ -548,7 +548,50 @@ C# のサンプルでは `activity` にマップではなく文字列を直接�
 
 したがって、未対応のアクションを含むワークフローでも**内容が失われることはない**。
 
-## 6.11 C# 形式と Python 形式は相互に変換できない
+## 6.11 制御を移す「終端アクション」
+
+一部のアクションは制御を別の場所へ移すため、**同じ配列の次のアクションへ流れない**。両言語の実装で同じ 8 種類が該当する。
+
+```text
+GotoAction  BreakLoop  ContinueLoop  EndWorkflow
+EndDialog   EndConversation  CancelDialog  CancelAllDialogs
+```
+
+Python は明示的な集合として持つ。
+
+```python
+# _declarative_builder.py
+# Action kinds that terminate control flow (no fall-through to successor)
+# These actions transfer control elsewhere and should not have sequential edges to the next action
+TERMINATOR_ACTIONS = frozenset({
+    "GotoAction", "BreakLoop", "ContinueLoop", "EndWorkflow",
+    "EndDialog", "EndConversation", "CancelDialog", "CancelAllDialogs",
+})
+...
+prev_executor = None if action_kind in TERMINATOR_ACTIONS else executor
+```
+
+C# は各 `Visit` の中で `RestartAfter` を呼び、同じ効果を得ている。コメントも "Define a clean-start to ensure X is not a source for any edge" と明示的である。該当するのは `GotoAction` / `BreakLoop` / `ContinueLoop` / `EndDialog` / `EndConversation` / `CancelDialog` / `CancelAllDialogs` の 7 種で、`EndWorkflow` は `EndDialog` に正規化されるため一覧に現れない。
+
+### 注意点
+
+`GotoAction` も終端アクションである。ジャンプするだけで戻ってこないため、直後に書いたアクションは実行されない。ループを書くときに見落としやすい。
+
+終端アクションの後ろにアクションを書いても構文エラーにはならないが、**到達不能なコード**になる。C# の単体テスト `EndConversation.yaml` は、この性質を検証するために後続の `SendActivity` へ `NEVER 1!` という文言を置いている。
+
+```yaml
+- kind: EndConversation
+  id: end_all
+
+# 到達しない
+- kind: SendActivity
+  id: send_activity_1
+  activity: NEVER 1!
+```
+
+本アプリのキャンバスもこれに合わせ、終端アクションからは次のアクションへの結線を描かない。到達不能なアクションは線が繋がらないため、視覚的に判別できる。
+
+## 6.12 C# 形式と Python 形式は相互に変換できない
 
 同じアクション語彙を持つ部分があるため一見似ているが、3 つの層で異なる。
 
@@ -565,7 +608,7 @@ C# のサンプルでは `activity` にマップではなく文字列を直接�
 
 スタイルの切り替えは自動変換できないものとして扱うべきである。
 
-## 6.12 YAML 記法上の注意
+## 6.13 YAML 記法上の注意
 
 ### 式の引用
 

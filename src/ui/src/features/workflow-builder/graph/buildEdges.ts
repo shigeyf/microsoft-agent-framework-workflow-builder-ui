@@ -1,5 +1,9 @@
 import type { ActionModel, WorkflowConnection } from "../types";
-import { branchesOf, isBranchAction } from "../domain/branches";
+import {
+  branchesOf,
+  isBranchAction,
+  isTerminatorAction,
+} from "../domain/branches";
 import { OUTPUT_NODE_ID, START_NODE_ID, nodeId } from "../domain/nodeIds";
 
 type EdgeKind = NonNullable<WorkflowConnection["kind"]>;
@@ -25,6 +29,10 @@ export function buildEdges(
 
   const connectChain = (list: ActionModel[], kind: EdgeKind) => {
     for (let index = 0; index < list.length - 1; index += 1) {
+      if (isTerminatorAction(list[index])) {
+        continue;
+      }
+
       connect(externalIdOf(list[index]), externalIdOf(list[index + 1]), kind);
     }
 
@@ -62,7 +70,11 @@ export function buildEdges(
 
   connect(START_NODE_ID, externalIdOf(actions[0]));
   connectChain(actions, "sequential");
-  connect(externalIdOf(actions[actions.length - 1]), OUTPUT_NODE_ID);
+
+  const last = actions[actions.length - 1];
+  if (!isTerminatorAction(last)) {
+    connect(externalIdOf(last), OUTPUT_NODE_ID);
+  }
 
   return edges;
 }

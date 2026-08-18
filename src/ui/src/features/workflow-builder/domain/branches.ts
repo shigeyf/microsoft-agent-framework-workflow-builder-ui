@@ -15,6 +15,26 @@ export function isBranchAction(action: ActionModel): boolean {
   );
 }
 
+/**
+ * Kinds that transfer control elsewhere, so the runtime never falls through to
+ * the next action in the list. Mirrors TERMINATOR_ACTIONS in the Python builder
+ * and the RestartAfter calls in the C# visitor.
+ */
+const TERMINATOR_KINDS = new Set([
+  "GotoAction",
+  "BreakLoop",
+  "ContinueLoop",
+  "EndWorkflow",
+  "EndDialog",
+  "EndConversation",
+  "CancelDialog",
+  "CancelAllDialogs",
+]);
+
+export function isTerminatorAction(action: ActionModel): boolean {
+  return TERMINATOR_KINDS.has(action.kind);
+}
+
 /** Branch order shown on the canvas; also drives edge building and insertion. */
 export function branchesOf(action: ActionModel): BranchDef[] {
   if (action.kind === "If") {

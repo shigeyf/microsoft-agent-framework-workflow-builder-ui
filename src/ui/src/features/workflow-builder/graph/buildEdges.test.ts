@@ -72,6 +72,40 @@ describe("buildEdges", () => {
     expect(edges).toContain(`after->${OUTPUT_NODE_ID}`);
   });
 
+  it("stops the flow after an action that transfers control", () => {
+    const edges = idsOf([
+      { id: "goto", kind: "GotoAction", displayName: "Goto", actionId: "a" },
+      { id: "after", kind: "SendActivity", displayName: "After" },
+    ]);
+
+    expect(edges).toContain(`${START_NODE_ID}->goto`);
+    expect(edges).not.toContain("goto->after");
+    expect(edges).toContain(`after->${OUTPUT_NODE_ID}`);
+  });
+
+  it("leaves no output edge when the workflow ends with a terminator", () => {
+    expect(
+      idsOf([{ id: "stop", kind: "EndWorkflow", displayName: "End" }]),
+    ).toEqual([`${START_NODE_ID}->stop`]);
+  });
+
+  it("stops the flow inside a loop body too", () => {
+    const edges = idsOf([
+      {
+        id: "loop",
+        kind: "Foreach",
+        displayName: "Loop",
+        body: [
+          { id: "brk", kind: "BreakLoop", displayName: "Break" },
+          { id: "never", kind: "SendActivity", displayName: "Never" },
+        ],
+      },
+    ]);
+
+    expect(edges).toContain("loop:loop-box->brk");
+    expect(edges).not.toContain("brk->never");
+  });
+
   it("gives a ConditionGroup one branch per condition plus an else row", () => {
     const edges = idsOf([
       {
