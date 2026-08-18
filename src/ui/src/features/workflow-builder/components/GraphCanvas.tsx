@@ -19,43 +19,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { ActionKind, ActionModel, WorkflowConnection } from "../types";
 import { OUTPUT_NODE_ID, START_NODE_ID, parseNodeId } from "../domain/nodeIds";
+import { findAction } from "../domain/actionTree";
 import type { WorkflowGraphNode } from "../WorkflowBuilder";
-
-function findActionInTree(
-  actions: ActionModel[],
-  id: string,
-): ActionModel | null {
-  for (const action of actions) {
-    if (action.id === id) {
-      return action;
-    }
-
-    if (action.then) {
-      const found = findActionInTree(action.then, id);
-      if (found) {
-        return found;
-      }
-    }
-
-    if (action.else) {
-      const found = findActionInTree(action.else, id);
-      if (found) {
-        return found;
-      }
-    }
-
-    if (action.conditions) {
-      for (const condition of action.conditions) {
-        const found = findActionInTree(condition.actions, id);
-        if (found) {
-          return found;
-        }
-      }
-    }
-  }
-
-  return null;
-}
 
 type WorkflowEdgeData = {
   kind?:
@@ -353,7 +318,8 @@ export function GraphCanvas({
   onRemoveCondition,
   onSelectWorkflow,
 }: GraphCanvasProps) {
-  const isDraggingRef = useRef(false);
+  // State rather than a ref: ending a drag has to re-run the sync effect.
+  const [dragging, setDragging] = useState(false);
   const canvasAreaRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
@@ -518,12 +484,12 @@ export function GraphCanvas({
   );
 
   useEffect(() => {
-    if (isDraggingRef.current) {
+    if (dragging) {
       return;
     }
 
     setReactFlowNodes(nodes.map(toFlowNode));
-  }, [nodes, toFlowNode]);
+  }, [dragging, nodes, toFlowNode]);
 
   const reactFlowEdges = useMemo<WorkflowEdge[]>(
     () =>
@@ -605,7 +571,7 @@ export function GraphCanvas({
         continue;
       }
 
-      if (findActionInTree(actions, change.id)) {
+      if (findAction(actions, change.id)) {
         onUpdateAction(change.id, "x", change.position.x);
         onUpdateAction(change.id, "y", change.position.y);
       }
@@ -624,7 +590,7 @@ export function GraphCanvas({
           edges={reactFlowEdges}
           onNodesChange={handleNodesChange}
           onNodeDragStart={(_, node) => {
-            isDraggingRef.current = true;
+            setDragging(true);
 
             if (parseNodeId(node.id).kind === "container") {
               containerDragStartRef.current = {
@@ -635,7 +601,7 @@ export function GraphCanvas({
             }
           }}
           onNodeDragStop={(_, node) => {
-            isDraggingRef.current = false;
+            setDragging(false);
 
             const start = containerDragStartRef.current;
             containerDragStartRef.current = null;

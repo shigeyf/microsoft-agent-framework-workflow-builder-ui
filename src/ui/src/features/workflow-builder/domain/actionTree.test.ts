@@ -28,6 +28,32 @@ function tree(): ActionModel[] {
 }
 
 describe("findAction", () => {
+  it("reaches actions nested in a loop body", () => {
+    const tree: ActionModel[] = [
+      {
+        id: "loop",
+        kind: "Foreach",
+        displayName: "loop",
+        body: [{ id: "inner", kind: "BreakLoop", displayName: "break" }],
+      },
+    ];
+
+    expect(findAction(tree, "inner")?.kind).toBe("BreakLoop");
+  });
+
+  it("moves an action nested in a loop body", () => {
+    const tree: ActionModel[] = [
+      {
+        id: "loop",
+        kind: "Foreach",
+        displayName: "loop",
+        body: [{ id: "inner", kind: "BreakLoop", displayName: "break", x: 0 }],
+      },
+    ];
+
+    expect(updateAction(tree, "inner", { x: 42 })[0].body?.[0].x).toBe(42);
+  });
+
   it("finds nested branch actions", () => {
     expect(findAction(tree(), "t1")?.id).toBe("t1");
     expect(findAction(tree(), "e1")?.id).toBe("e1");
