@@ -56,11 +56,11 @@ export function buildEdges(
 
         connect(branchId, externalIdOf(branch.actions[0]), "branch-continue");
         connectChain(branch.actions, "branch-continue");
-        connect(
-          externalIdOf(branch.actions[branch.actions.length - 1]),
-          adderId,
-          "branch-end",
-        );
+
+        const lastAction = branch.actions[branch.actions.length - 1];
+        if (!isTerminatorAction(lastAction)) {
+          connect(externalIdOf(lastAction), adderId, "branch-end");
+        }
       }
     }
   };

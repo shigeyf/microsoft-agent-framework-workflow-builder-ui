@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildEdges } from "./buildEdges";
+import { buildNodes } from "./buildNodes";
 import { nodeId, OUTPUT_NODE_ID, START_NODE_ID } from "../domain/nodeIds";
 import type { ActionModel } from "../types";
 
@@ -128,6 +129,25 @@ describe("buildEdges", () => {
 
     expect(edges).toContain("loop:loop-box->brk");
     expect(edges).not.toContain("brk->never");
+  });
+
+  it("offers no branch adder after a terminator", () => {
+    const actions: ActionModel[] = [
+      {
+        id: "loop",
+        kind: "Foreach",
+        displayName: "Loop",
+        body: [{ id: "brk", kind: "BreakLoop", displayName: "Break" }],
+      },
+    ];
+
+    expect(idsOf(actions).some((edge) => edge.includes(":add"))).toBe(false);
+    expect(
+      buildNodes(actions, [], {
+        start: { x: 0, y: 0 },
+        output: { x: 0, y: 0 },
+      }).some((node) => node.branchKind === "adder"),
+    ).toBe(false);
   });
 
   it("gives a ConditionGroup one branch per condition plus an else row", () => {

@@ -1,4 +1,5 @@
 import type { ActionKind, ActionModel, WorkflowStyle } from "../types";
+import { isBranchAction, isTerminatorAction } from "../domain/branches";
 import { ActionFieldRenderer } from "./editor/ActionFieldRenderer";
 
 type ActionEditorProps = {
@@ -67,7 +68,7 @@ export function ActionEditor({
         onAddCondition={onAddCondition}
       />
 
-      {action.kind !== "If" && action.kind !== "ConditionGroup" ? (
+      {isBranchAction(action) || isTerminatorAction(action) ? null : (
         <select
           className="action-select accent"
           value=""
@@ -86,7 +87,7 @@ export function ActionEditor({
             </option>
           ))}
         </select>
-      ) : null}
+      )}
     </div>
   );
 }

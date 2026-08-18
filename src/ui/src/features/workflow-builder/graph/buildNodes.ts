@@ -1,6 +1,10 @@
 import type { ActionKind, ActionModel } from "../types";
 import { flattenActions } from "../domain/actionTree";
-import { branchesOf, isBranchAction } from "../domain/branches";
+import {
+  branchesOf,
+  isBranchAction,
+  isTerminatorAction,
+} from "../domain/branches";
 import { unreachableActionIds } from "../domain/reachability";
 import { OUTPUT_NODE_ID, START_NODE_ID, nodeId } from "../domain/nodeIds";
 import { LAYOUT } from "./layout";
@@ -186,6 +190,12 @@ function buildBranchNodes(
       });
 
       const lastAction = branch.actions.at(-1);
+
+      // Appending after a terminator would only create unreachable actions.
+      if (lastAction && isTerminatorAction(lastAction)) {
+        return;
+      }
+
       const anchor = lastAction
         ? {
             x: (lastAction.x ?? 0) + subtreeWidth(lastAction),
