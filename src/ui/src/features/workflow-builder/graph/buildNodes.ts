@@ -1,6 +1,7 @@
 import type { ActionKind, ActionModel } from "../types";
 import { flattenActions } from "../domain/actionTree";
 import { branchesOf, isBranchAction } from "../domain/branches";
+import { unreachableActionIds } from "../domain/reachability";
 import { OUTPUT_NODE_ID, START_NODE_ID, nodeId } from "../domain/nodeIds";
 import { LAYOUT } from "./layout";
 
@@ -16,6 +17,8 @@ export type WorkflowGraphNode = {
   branchKind?: "container" | "then" | "else" | "loop" | "condition" | "adder";
   collapsed?: boolean;
   actionKind?: ActionKind;
+  /** The runtime never reaches this action because an earlier terminator ends the flow. */
+  unreachable?: boolean;
 };
 
 export type NodePositions = { start: Position; output: Position };
@@ -253,6 +256,8 @@ export function buildNodes(
     meta: "result",
   };
 
+  const unreachable = unreachableActionIds(actions);
+
   const processNodes = flattenActions(
     actions,
     collapsed,
@@ -265,6 +270,7 @@ export function buildNodes(
     ...LAYOUT.node,
     actionKind: action.kind,
     collapsed: collapsed.includes(action.id),
+    unreachable: unreachable.has(action.id),
     meta:
       action.variable ??
       action.path ??

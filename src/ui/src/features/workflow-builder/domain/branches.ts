@@ -31,8 +31,21 @@ const TERMINATOR_KINDS = new Set([
   "CancelAllDialogs",
 ]);
 
+/** Terminators that finish the run rather than jumping somewhere else. */
+const ENDING_KINDS = new Set([
+  "EndWorkflow",
+  "EndDialog",
+  "EndConversation",
+  "CancelDialog",
+  "CancelAllDialogs",
+]);
+
 export function isTerminatorAction(action: ActionModel): boolean {
   return TERMINATOR_KINDS.has(action.kind);
+}
+
+export function endsWorkflow(action: ActionModel): boolean {
+  return ENDING_KINDS.has(action.kind);
 }
 
 /** Branch order shown on the canvas; also drives edge building and insertion. */

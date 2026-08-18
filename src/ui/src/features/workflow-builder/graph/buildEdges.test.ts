@@ -80,13 +80,37 @@ describe("buildEdges", () => {
 
     expect(edges).toContain(`${START_NODE_ID}->goto`);
     expect(edges).not.toContain("goto->after");
-    expect(edges).toContain(`after->${OUTPUT_NODE_ID}`);
+    expect(edges).not.toContain(`after->${OUTPUT_NODE_ID}`);
   });
 
   it("leaves no output edge when the workflow ends with a terminator", () => {
     expect(
       idsOf([{ id: "stop", kind: "EndWorkflow", displayName: "End" }]),
-    ).toEqual([`${START_NODE_ID}->stop`]);
+    ).toEqual([`${START_NODE_ID}->stop`, `stop->${OUTPUT_NODE_ID}`]);
+  });
+
+  it("marks the edge from a flow ending action as flow-end", () => {
+    const edges = buildEdges(
+      [
+        { id: "stop", kind: "EndWorkflow", displayName: "End" },
+        { id: "dead", kind: "SendActivity", displayName: "Dead" },
+      ],
+      [],
+    );
+
+    expect(edges.find((edge) => edge.to === OUTPUT_NODE_ID)).toMatchObject({
+      from: "stop",
+      kind: "flow-end",
+    });
+    expect(edges.some((edge) => edge.from === "dead")).toBe(false);
+  });
+
+  it("does not send a jump action to the output", () => {
+    const edges = idsOf([
+      { id: "goto", kind: "GotoAction", displayName: "Goto", actionId: "x" },
+    ]);
+
+    expect(edges).not.toContain(`goto->${OUTPUT_NODE_ID}`);
   });
 
   it("stops the flow inside a loop body too", () => {

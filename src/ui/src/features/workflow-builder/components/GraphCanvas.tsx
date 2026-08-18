@@ -58,7 +58,12 @@ function findActionInTree(
 }
 
 type WorkflowEdgeData = {
-  kind?: "sequential" | "branch-root" | "branch-continue" | "branch-end";
+  kind?:
+    | "sequential"
+    | "branch-root"
+    | "branch-continue"
+    | "branch-end"
+    | "flow-end";
   from?: string;
   to?: string;
   onRequestAdd?: (sourceId: string, anchor: { x: number; y: number }) => void;
@@ -105,6 +110,7 @@ type FlowNodeData = {
   height?: number;
   collapsed?: boolean;
   actionKind?: string;
+  unreachable?: boolean;
   onAddToBranch?: (nodeId: string) => void;
   onToggleCollapse?: (nodeId: string) => void;
   onAddCondition?: (nodeId: string) => void;
@@ -150,7 +156,7 @@ function FlowNodeCard({ id, data, selected }: NodeProps) {
 
   return (
     <div
-      className={`flow-node ${nodeData.kind}${selected ? " selected" : ""}${isBranchNode ? " branch-node" : ""}${isIfContainer ? " if-container" : ""}${isBranchSlot ? " branch-slot" : ""}`}
+      className={`flow-node ${nodeData.kind}${selected ? " selected" : ""}${isBranchNode ? " branch-node" : ""}${isIfContainer ? " if-container" : ""}${isBranchSlot ? " branch-slot" : ""}${nodeData.unreachable ? " unreachable" : ""}`}
       style={
         isBranchNode
           ? {
@@ -214,6 +220,14 @@ function FlowNodeCard({ id, data, selected }: NodeProps) {
             <strong>{nodeData.label}</strong>
           </div>
           <span className="node-meta">{nodeData.meta ?? "flow step"}</span>
+          {nodeData.unreachable ? (
+            <span
+              className="node-warning"
+              title="手前の終端アクションで制御が移るため、このアクションは実行されません"
+            >
+              ⚠ 到達不能
+            </span>
+          ) : null}
           {nodeData.actionKind === "ConditionGroup" && !nodeData.collapsed ? (
             <button
               type="button"
@@ -262,20 +276,28 @@ function WorkflowConnectorEdge(props: EdgeProps<Edge<WorkflowEdgeData>>) {
     (data?.kind ?? "sequential") === "branch-continue";
   const isBranchRoot = (data?.kind ?? "sequential") === "branch-root";
   const isBranchEnd = (data?.kind ?? "sequential") === "branch-end";
+  const isFlowEnd = (data?.kind ?? "sequential") === "flow-end";
 
   return (
     <>
       <BaseEdge
         path={edgePath}
         style={{
-          stroke:
-            isBranchRoot || isBranchEnd
+          stroke: isFlowEnd
+            ? "#94a3b8"
+            : isBranchRoot || isBranchEnd
               ? "#c084fc"
               : isAddable
                 ? "#7dd3fc"
                 : "#c084fc",
-          strokeWidth: isBranchRoot || isBranchEnd ? 2 : 2.5,
-          strokeDasharray: isBranchRoot ? "7 8" : isBranchEnd ? "4 6" : "0",
+          strokeWidth: isBranchRoot || isBranchEnd || isFlowEnd ? 2 : 2.5,
+          strokeDasharray: isBranchRoot
+            ? "7 8"
+            : isBranchEnd
+              ? "4 6"
+              : isFlowEnd
+                ? "2 7"
+                : "0",
         }}
       />
 
@@ -464,6 +486,7 @@ export function GraphCanvas({
         label: node.displayName,
         meta: node.meta,
         branchKind: node.branchKind,
+        unreachable: node.unreachable,
         width: node.width,
         height: node.height,
         collapsed: node.collapsed,

@@ -1,10 +1,12 @@
 import type { ActionModel, WorkflowConnection } from "../types";
 import {
   branchesOf,
+  endsWorkflow,
   isBranchAction,
   isTerminatorAction,
 } from "../domain/branches";
 import { OUTPUT_NODE_ID, START_NODE_ID, nodeId } from "../domain/nodeIds";
+import { unreachableActionIds } from "../domain/reachability";
 
 type EdgeKind = NonNullable<WorkflowConnection["kind"]>;
 
@@ -71,8 +73,18 @@ export function buildEdges(
   connect(START_NODE_ID, externalIdOf(actions[0]));
   connectChain(actions, "sequential");
 
+  // A top level action that finishes the run reaches the output without falling through.
+  for (const action of actions) {
+    if (endsWorkflow(action)) {
+      connect(action.id, OUTPUT_NODE_ID, "flow-end");
+    }
+  }
+
   const last = actions[actions.length - 1];
-  if (!isTerminatorAction(last)) {
+  if (
+    !isTerminatorAction(last) &&
+    !unreachableActionIds(actions).has(last.id)
+  ) {
     connect(externalIdOf(last), OUTPUT_NODE_ID);
   }
 

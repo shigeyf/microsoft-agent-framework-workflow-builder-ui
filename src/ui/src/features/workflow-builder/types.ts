@@ -106,7 +106,12 @@ export type WorkflowConnection = {
   id: string;
   from: string;
   to: string;
-  kind?: "sequential" | "branch-root" | "branch-continue" | "branch-end";
+  kind?:
+    | "sequential"
+    | "branch-root"
+    | "branch-continue"
+    | "branch-end"
+    | "flow-end";
 };
 
 export const actionKindOptions: ActionKind[] = [
