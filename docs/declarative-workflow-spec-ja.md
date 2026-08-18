@@ -179,6 +179,32 @@ condition: =Local.age >= 18
         text: "Welcome, young user!"
 ```
 
+`ConditionGroup` は `If` と似ているが、**フォールバック側のキー名が異なる**。`If` は `else`、`ConditionGroup` は `elseActions` を使う。混同しやすいので注意する。
+
+```yaml
+- kind: ConditionGroup
+  id: route_by_category
+  conditions:
+    - condition: =Local.category = "electronics"
+      id: electronics_branch
+      actions:
+        - kind: SetVariable
+          variable: Local.department
+          value: Electronics Team
+  elseActions: # ← else ではない
+    - kind: SetVariable
+      variable: Local.department
+      value: General Support
+```
+
+`GotoAction` の `actionId` は、同じワークフロー内に実在するアクション ID を指す必要がある。
+
+```yaml
+- kind: GotoAction
+  id: continue_loop
+  actionId: student_label
+```
+
 ### 6.3 出力
 
 - `SendActivity`
@@ -196,18 +222,38 @@ condition: =Local.age >= 18
 
 - `InvokeAzureAgent`
 
-例:
-
 ```yaml
 - kind: InvokeAzureAgent
   id: call_assistant
   agent:
     name: AssistantAgent
   conversationId: =System.ConversationId
+  input:
+    messages: =Local.userMessage
+    arguments:
+      topic: =Local.topic
+    externalLoop:
+      when: =Not(Local.IsResolved)
   output:
     responseObject: Local.AnalystResult
+    messages: Local.AnalystMessages
     autoSend: true
 ```
+
+`input` / `output` のプロパティは次のとおり。
+
+| プロパティ | 説明 |
+| --- | --- |
+| `agent.name` | 必須。登録済みエージェント名 |
+| `conversationId` | 会話コンテキスト |
+| `input.messages` | エージェントへ渡すメッセージ |
+| `input.arguments` | 任意キーの引数マップ |
+| `input.externalLoop.when` | 真の間、呼び出しを繰り返す |
+| `output.responseObject` | 応答オブジェクトの格納先 |
+| `output.messages` | 会話メッセージの格納先 |
+| `output.autoSend` | 応答を自動送信するか |
+
+`output.responseObject` と `output.messages` は**別のプロパティ**であり、片方の別名ではない。また `output` は後続アクションが参照する変数の代入元になるため、ここを落とすと「代入されていない変数を参照する」壊れたワークフローになる。
 
 ### 6.5 関数 / MCP / HTTP
 
@@ -215,18 +261,44 @@ condition: =Local.age >= 18
 - `InvokeMcpTool`
 - `HttpRequestAction`
 
-例:
+キー名は `HttpRequestAction` であり、`InvokeHttpRequest` ではない。
 
 ```yaml
+- kind: InvokeFunctionTool
+  id: invoke_weather
+  functionName: get_weather
+  arguments:
+    location: =Local.location
+  output:
+    result: Local.weatherInfo
+    autoSend: true
+
 - kind: InvokeMcpTool
   id: search_docs
   serverUrl: https://learn.microsoft.com/api/mcp
+  serverLabel: microsoft_docs
   toolName: microsoft_docs_search
+  requireApproval: =Workflow.Inputs.requireApproval
   arguments:
     query: =Local.SearchQuery
   output:
     result: Local.SearchResults
+
+- kind: HttpRequestAction
+  id: fetch_repo_info
+  method: GET
+  url: =Concatenate("https://api.github.com/repos/", Local.RepoName)
+  headers:
+    Accept: application/vnd.github+json
+  queryParameters:
+    per_page: 10
+  response: Local.RepoInfo
+  responseHeaders: Local.RepoHeaders
 ```
+
+ツール系の結果格納先は `output.result` であり、エージェントの `output.responseObject` とは別のキーである。
+
+`requireApproval` は真偽値だけでなく**式も取り得る**（例: `=Workflow.Inputs.requireApproval`）。UI で真偽値のチェックボックスとして扱うと式を表現できない。
 
 ### 6.6 Human-in-the-Loop
 
@@ -256,6 +328,95 @@ condition: =Local.age >= 18
 - `CopyConversationMessages`
 - `RetrieveConversationMessage`
 - `RetrieveConversationMessages`
+
+## 6.9 言語別の対応状況（ソース検証済み）
+
+Microsoft Learn の Actions Quick Reference は 2 か所にあり、内容が食い違っている。Python ピボットの表は `ParseValue` / `SetTextVariable` / `ClearAllVariables` / `EditTableV2` を落としているが、Python の実装には存在する。以下は実装ソースで確認した結果である。
+
+確認箇所:
+
+- Python: `python/packages/declarative/agent_framework_declarative/_workflows/_declarative_builder.py` の `ALL_ACTION_EXECUTORS`、および同ファイル内で構造として特別扱いされる制御構文
+- C#: `dotnet/src/Microsoft.Agents.AI.Workflows.Declarative/Interpreter/WorkflowActionVisitor.cs` の `Visit(...)` 群
+
+両方で使えるもの:
+
+```text
+SetVariable SetTextVariable SetMultipleVariables ResetVariable ClearAllVariables
+ParseValue EditTable EditTableV2 If ConditionGroup Foreach BreakLoop ContinueLoop
+GotoAction SendActivity InvokeAzureAgent InvokeFunctionTool InvokeMcpTool
+HttpRequestAction Question RequestExternalInput EndWorkflow EndConversation
+EndDialog CancelDialog CancelAllDialogs CreateConversation
+```
+
+**`SetValue` は Python 専用**である。C# には対応する kind がなく、`SetVariable` に `variable` を指定する形を使う。根拠は次の 4 点。
+
+1. Learn の Python ピボットに「Python **also** supports the `SetValue` action kind」という注記がある
+2. Learn の C# ピボットの変数管理アクション一覧に `SetValue` がない
+3. C# 形式のサンプル 7 件はすべて `SetVariable` のみを使う
+4. C# の `WorkflowActionVisitor.cs` に `SetValue` の出現が 0 件
+
+逆に C# にのみ存在するものとして、会話操作アクションのほか、Power Virtual Agents 由来の `BeginDialog` / `OAuthInput` / `RecognizeIntent` / `TransferConversation` などがある。
+
+なお C# のビジターには `If` / `EndWorkflow` / `SetValue` の `Visit` が無いが、`If` と `EndWorkflow` は C# サンプルで実際に使われている。これはオブジェクトモデル側で `If` → `ConditionGroup`、`EndWorkflow` → `EndDialog` のように正規化されるためと考えられる。**ビジターの一覧だけで対応可否を判断してはならない。**
+
+## 6.10 C# 形式と Python 形式は相互に変換できない
+
+同じアクション語彙を持つ部分があるため一見似ているが、3 つの層で異なる。
+
+| 層 | Python | C# |
+| --- | --- | --- |
+| 文書構造 | `name` / `description` / `inputs` / `actions` | `kind: Workflow` / `trigger.actions` |
+| 変数名前空間 | `Local.*` `System.*` `Workflow.Inputs.*` `Workflow.Outputs.*` | `Local.*` `System.*` のみ |
+| アクション | `SetValue` あり | `SetValue` なし。会話操作など C# 専用が多数 |
+
+特に名前空間が致命的で、C# は `Workflow.Inputs` / `Workflow.Outputs` を持たない。入力は `System.LastMessage`、出力は `SendActivity` で表現する。
+
+したがって Python のワークフローを C# 形式に切り替えると、`Workflow.Inputs.age` のような式が**存在しない名前空間を参照したまま残る**。また C# 形式には `inputs:` ブロック自体が無いため、入力定義は出力されず失われる。
+
+スタイルの切り替えは自動変換できないものとして扱うべきである。
+
+## 6.11 YAML 記法上の注意
+
+### 式の引用
+
+`=` で始まる式であっても、コロンと空白の並びを含む場合は**引用しないと YAML として壊れる**。公式サンプルは単一引用符を使っている。
+
+```yaml
+# 壊れる（プレーンスカラーが : で終端する）
+text: =Concat("You have been categorized as: ", Local.category)
+
+# 正しい
+text: '=Concat("You have been categorized as: ", Local.category)'
+```
+
+同様に `#` を含む値、前後に空白がある値も引用が必要になる。
+
+### 複数行の式
+
+`externalLoop.when` のように複数行にわたる式は、リテラルブロックスカラー `|-` を使う。引用符付きスカラーで複数行にすると、YAML の仕様上**改行が空白に畳まれる**ため、元の表現が保たれない。
+
+```yaml
+externalLoop:
+  when: |-
+    =Not(Local.ServiceParameters.IsResolved)
+     And
+     Not(Local.ServiceParameters.NeedsTicket)
+```
+
+ただしブロックスカラーは、先頭の空行・行頭インデント・末尾改行を再現できない。`"\n\n[Teacher]:\n"` のような値は引用符付きスカラーで表現する必要がある。
+
+### 構造化された値
+
+`SetValue` の `value` はスカラーだけでなくマップも取れる。文字列として扱うと意味が変わるため注意する。
+
+```yaml
+- kind: SetValue
+  id: store_results
+  path: Workflow.Outputs.survey
+  value:
+    name: =Local.userName
+    feeling: =Local.feeling
+```
 
 ## 7. 実行モデル
 

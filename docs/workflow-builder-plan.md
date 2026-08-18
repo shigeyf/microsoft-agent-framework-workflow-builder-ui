@@ -1,10 +1,10 @@
-# YAML ワークフロー GUI 開発計画
+# YAML ワークフロー GUI 開発計画と実装状況
 
 ## 1. 目的
 
-Microsoft Agent Framework の宣言型ワークフロー仕様をもとに、YAML を手入力ではなくフォームベースで組み立てられる React アプリを開発する。
+Microsoft Agent Framework の宣言型ワークフロー仕様をもとに、YAML を手入力ではなくキャンバスとフォームで組み立てられる React アプリを開発する。
 
-目的は以下の3点。
+目的は以下の 3 点。
 
 - YAML 仕様の習得を支援する
 - ワークフロー定義のミスを減らす
@@ -16,150 +16,121 @@ Microsoft Agent Framework の宣言型ワークフロー仕様をもとに、YAM
 - YAML レイアウトを理解し始めたプロトタイプ担当者
 - 宣言型ワークフローの設計レビューを行うチーム
 
-## 3. 要件
+## 3. 実装済みの機能
 
-### 3.1 機能要件
+### 3.1 ワークフローの編集
 
-- ワークフローの基本情報を入力できる
-  - ワークフロー名
-  - 説明
-  - 入力パラメータ
-  - トリガー種別
-- アクションを追加・削除・変更できる
-- サポート対象アクション
-  - `SetVariable`
-  - `SendActivity`
-  - `If`
-  - `InvokeAzureAgent`
-  - `Question`
-- YAML をリアルタイムで生成する
-- 生成した YAML をクリップボードへコピーできる
-- C# 形式と Python 形式を切り替えられる
+- ワークフロー名 / 説明 / トリガー種別 / 入力パラメータの編集
+- キャンバス上でのアクション追加・削除・編集・移動
+- `If` と `ConditionGroup` をコンテナとして描画し、内部に分岐を保持
+- コンテナの折りたたみと展開
+- 分岐末尾の `+` からの追加、結線上の `+` からの挿入
 
-### 3.2 非機能要件
+### 3.2 対応アクション
 
-- シンプルで軽量な UI
-- TypeScript による型安全性
-- Vite ベースでの高速な開発体験
-- YAML のプレビューと編集が同時に確認できること
+| kind | Python | C# |
+| --- | --- | --- |
+| `SetValue` | ○ | — |
+| `SetVariable` | ○ | ○ |
+| `SendActivity` | ○ | ○ |
+| `If` | ○ | ○ |
+| `ConditionGroup` | ○ | ○ |
+| `InvokeAzureAgent` | ○ | ○ |
+| `Question` | ○ | ○ |
+| `RequestExternalInput` | ○ | ○ |
+| `GotoAction` | ○ | ○ |
+| `CreateConversation` | ○ | ○ |
+| `EndWorkflow` | ○ | ○ |
+| `InvokeFunctionTool` | ○ | ○ |
+| `InvokeMcpTool` | ○ | ○ |
+| `HttpRequestAction` | ○ | ○ |
 
-## 4. コンポーネント設計
+対応可否の根拠は `declarative-workflow-spec-ja.md` の 6.9 節を参照。
 
-### 4.1 画面構成
+### 3.3 YAML の入出力
 
-1. ヘッダー
-   - タイトル
-   - YAML 形式切替（C# / Python）
-   - YAML コピー
-2. 左ペイン
-   - ワークフロー基本設定
-   - 入力項目管理
-   - アクション管理
-3. 右ペイン
-   - 生成中の YAML プレビュー
-   - 例示データの表示
+- 入力内容から C# 形式 / Python 形式の YAML をリアルタイム生成
+- クリップボードへのコピー
+- ローカルファイルの読み込み
+- 公式サンプル 12 件を URL から取得して描画
 
-### 4.2 主要コンポーネント
+### 3.4 スタイルの扱い
 
-- `WorkflowBuilderApp`
-- `WorkflowHeader`
-- `WorkflowSettingsForm`
-- `InputParameterEditor`
-- `ActionList`
-- `ActionEditor`
-- `YamlPreviewPanel`
+2 つの形式は相互変換できないため、アクションまたは入力が 1 つでもある間は Style を変更できない。作り直すための `New workflow` ボタンを用意している。
 
-## 5. データモデル
+アクション一覧は選択中の Style で使えるものだけに絞り込む。
 
-```ts
-type WorkflowStyle = "csharp" | "python";
+## 4. アーキテクチャ
 
-type InputParam = {
-  name: string;
-  type: "string" | "number" | "boolean" | "object";
-  description: string;
-};
-
-type ActionModel = {
-  id: string;
-  kind: "SetVariable" | "SendActivity" | "If" | "InvokeAzureAgent" | "Question";
-  displayName: string;
-  variable?: string;
-  value?: string;
-  activityText?: string;
-  condition?: string;
-  agentName?: string;
-  conversationId?: string;
-};
+```text
+src/ui/src/features/workflow-builder/
+├── WorkflowBuilder.tsx     状態の保持と各操作のオーケストレーション
+├── types.ts                ドメインモデルの型定義
+├── data.ts                 アクションの初期値
+├── samples.ts              公式サンプルの URL 一覧と取得
+├── domain/                 座標に依存しない純粋なモデル操作
+│   ├── actionTree.ts       then / else / conditions を跨ぐ探索・挿入・削除
+│   ├── branches.ts         分岐の正準的な順序
+│   ├── nodeIds.ts          キャンバス上のノード ID 規約
+│   └── styles.ts           言語別の対応アクションとスタイル固定の判定
+├── graph/                  モデル → 描画用ビューモデル
+│   ├── layout.ts           座標定数
+│   ├── buildNodes.ts       ノード生成と寸法計算
+│   ├── buildEdges.ts       結線生成
+│   ├── autoLayout.ts       座標を持たない読み込みデータの自動配置
+│   └── useWorkflowGraph.ts 上記をまとめるフック
+├── components/             React コンポーネント
+└── utils/
+    ├── yaml.ts             モデル → YAML
+    └── parseYaml.ts        YAML → モデル
 ```
 
-## 6. 実装方針
+依存の向きは `domain` → `graph` → `components` の一方向とする。`domain` と `graph` は React に依存しない純粋な関数で構成し、単体テストの対象とする。
 
-### Phase 1: 仕様とモデル整理
+## 5. 実装上の重要な決定
 
-- Microsoft Learn の YAML フォーマットを整理する
-- C# と Python の差異を吸収できる中間モデルを設計する
-- 生成ロジックの対象アクションを限定する
+### 5.1 分岐を平坦化しない
 
-### Phase 2: UI 実装
+`If` と `ConditionGroup` は親の `actions` 配列に属する 1 つのアクションであり、その中身は `then` / `else` / `conditions[].actions` という別の配列である。この 2 層構造をキャンバス上でも保つ。詳細は `declarative-workflow-spec-ja.md` の 11 節を参照。
 
-- React コンポーネントでフォームを構築する
-- 基本情報入力欄を追加する
-- アクション追加ボタンを設置する
-- アクション種別ごとに入力項目を切り替える
+### 5.2 未知のプロパティを保持する
 
-### Phase 3: YAML 生成
+パーサーが解釈しなかったキーは `ActionModel.extra` に退避し、書き出し時にそのまま再出力する。仕様には存在するが UI が未対応のプロパティ（`body` や `connection.name` など）や、未対応の kind を読み込んでも内容が失われない。
 
-- `workflowToYaml(workflow, style)` を実装する
-- フォーム入力を YAML に変換する
-- 例として `SetVariable`, `SendActivity`, `If` を出力できるようにする
+### 5.3 コンテナの寸法は構造から求める
 
-### Phase 4: 便利機能
+ネストした分岐が重ならないよう、行の高さと幅を座標ではなく木の構造から算出する。
 
-- YAML をコピーするボタン
-- サンプル定義の読み込み
-- バリデーション警告の表示
+- `subtreeHeight(action)` — 行の高さ
+- `subtreeWidth(action)` — 分岐末尾の `+` の位置、挿入位置、自動配置で共通利用
 
-### Phase 5: 改善フェーズ
+固定値（`node.width` など）で代用すると、ネストしたコンテナの内側に `+` が入り込む。
 
-- ループ / `ConditionGroup` / `Foreach` の追加
-- ドラッグアンドドロップによるアクション並び替え
-- JSON schema / YAML schema のチェック
+### 5.4 コールバックは `node.data` 経由で渡す
 
-## 7. MVP スコープ
+キャンバスとビルダー間の通知に `window` のカスタムイベントを使わず、React Flow の `node.data` / `edge.data` に型付きコールバックを載せる。
 
-MVP では以下を対象とする。
+## 6. テスト方針
 
-- 基本情報入力
-- 入力パラメータ管理
-- `SetVariable`
-- `SendActivity`
-- `If`
-- `InvokeAzureAgent`
-- `Question`
-- YAML プレビューとコピー
+`npm test` で Vitest を実行する。重視しているのは次の 3 種類。
 
-## 8. 非機能観点
+1. **往復テスト** — `parse → buildYaml → parse` でモデルが一致すること
+2. **プロパティ網羅テスト** — 元 YAML と再出力 YAML のプロパティパスを比較し、欠落を検出する。往復テストは読み書き双方が無視するフィールドを検出できないため、その死角を埋める
+3. **レイアウト不変条件** — カード同士が重ならないこと、コンテナ枠が自分の部分木だけを覆うこと、分岐末尾の `+` がネストしたコンテナの内側に入らないこと
 
-- エラーなしに生成可能な最小設計にする
-- すべての入力を TypeScript の型で制御する
-- 仕様変更に備えて YAML 生成ロジックを分離する
+テストデータには公式サンプル 9 件をそのまま fixture として使用する。
 
-## 9. 受け入れ基準
+## 7. 残課題
 
-- ワークフロー名、説明、入力パラメータを入力できる
-- アクションを追加して YAML に変換できる
-- C# と Python の表示形式を切り替えられる
-- 生成 YAML をコピーできる
-- `npm run build` でプロジェクトが正常にビルドできる
+- `Foreach` の対応。`actions` を持つコンテナ型のため、`If` / `ConditionGroup` と同様の枠描画が必要
+- `BreakLoop` / `ContinueLoop` / `SetMultipleVariables` / `EndConversation` / `ParseValue` の専用フォーム。現状は `extra` で内容を保持するのみ
+- C# 専用アクション（会話操作など）の対応
+- 手動で追加したアクションの自動整列
+- `GraphCanvas.tsx` の分割
 
-## 10. 次のステップ
+## 8. 受け入れ基準
 
-1. サンプルワークフローの定義を増やす
-2. `ConditionGroup` と `Foreach` の対応を追加する
-3. 読み込んだ YAML を編集する「インポート」機能を実装する
-4. エラーや注意表示を追加して、YAML 仕様と相違がないか検証する
-
-## 11. 実装メモ
-
-今回の実装では、初期段階として「フォーム入力 → YAML 生成」の簡易版を構築する。これにより、宣言型ワークフローの考え方を視覚的に理解しながら、将来的により高度なノード型エディタへ拡張しやすい設計にする。
+- 公式サンプルを読み込み、YAML と一致するグラフを描画できる
+- 読み込んだ YAML を再出力してもプロパティが失われない
+- C# と Python の差異を UI が区別する
+- `npm run build` / `npm test` / `npm run lint` がすべて成功する
