@@ -1,10 +1,18 @@
-import type { ActionKind, ActionModel, InputParam } from "./types";
+import type {
+  ActionKind,
+  ActionModel,
+  InputParam,
+  WorkflowStyle,
+} from "./types";
 
 export const defaultInputs: InputParam[] = [];
 
 export const defaultActions: ActionModel[] = [];
 
-export function createAction(kind: ActionKind): ActionModel {
+export function createAction(
+  kind: ActionKind,
+  style: WorkflowStyle = "python",
+): ActionModel {
   const id = `${kind.toLowerCase()}_${Math.random().toString(36).slice(2, 8)}`;
 
   switch (kind) {
@@ -120,6 +128,34 @@ export function createAction(kind: ActionKind): ActionModel {
         id,
         kind,
         displayName: "End workflow",
+        x: 40,
+        y: 80,
+      };
+    case "Foreach":
+      // C# names a variable path, Python names the variable itself.
+      return {
+        id,
+        kind,
+        displayName: "For each",
+        x: 40,
+        y: 80,
+        loopSource: style === "csharp" ? '=["a", "b"]' : "=Local.items",
+        loopValue: style === "csharp" ? "Local.LoopValue" : "item",
+        body: [],
+      };
+    case "BreakLoop":
+      return {
+        id,
+        kind,
+        displayName: "Break loop",
+        x: 40,
+        y: 80,
+      };
+    case "ContinueLoop":
+      return {
+        id,
+        kind,
+        displayName: "Continue loop",
         x: 40,
         y: 80,
       };

@@ -13,7 +13,7 @@ export type WorkflowGraphNode = {
   width?: number;
   height?: number;
   meta?: string;
-  branchKind?: "container" | "then" | "else" | "condition" | "adder";
+  branchKind?: "container" | "then" | "else" | "loop" | "condition" | "adder";
   collapsed?: boolean;
   actionKind?: ActionKind;
 };
@@ -120,7 +120,7 @@ export function branchSlotPosition(
 }
 
 function containerLabelOf(action: ActionModel): string {
-  return action.kind === "If" ? "IF" : "CONDITIONGROUP";
+  return action.kind.toUpperCase();
 }
 
 function collapsedContainer(action: ActionModel): WorkflowGraphNode {

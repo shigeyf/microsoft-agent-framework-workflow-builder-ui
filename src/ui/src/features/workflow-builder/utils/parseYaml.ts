@@ -53,6 +53,12 @@ const SCALAR_KEYS = [
 
 const MAP_KEYS = ["arguments", "headers", "queryParameters"] as const;
 
+/** `Foreach` spells its properties differently in each runtime. */
+export const FOREACH_KEYS = {
+  csharp: { source: "items", value: "value", index: "index" },
+  python: { source: "source", value: "itemName", index: "indexName" },
+} as const;
+
 /** Everything the parser understands; the rest is carried in `extra`. */
 const HANDLED_KEYS = new Set<string>([
   "kind",
@@ -75,6 +81,12 @@ const HANDLED_KEYS = new Set<string>([
   "else",
   "elseActions",
   "conditions",
+  "actions",
+  "items",
+  "source",
+  "index",
+  "itemName",
+  "indexName",
   ...SCALAR_KEYS,
   ...MAP_KEYS,
 ]);
@@ -137,11 +149,13 @@ class IdFactory {
   }
 }
 
-function parseAction(
-  raw: unknown,
-  ids: IdFactory,
-  unsupported: Set<string>,
-): ActionModel | null {
+type ParseContext = {
+  ids: IdFactory;
+  unsupported: Set<string>;
+  style: WorkflowStyle;
+};
+
+function parseAction(raw: unknown, ctx: ParseContext): ActionModel | null {
   if (!isRecord(raw)) {
     return null;
   }
@@ -152,15 +166,26 @@ function parseAction(
   }
 
   if (!KNOWN_KINDS.has(kindText)) {
-    unsupported.add(kindText);
+    ctx.unsupported.add(kindText);
   }
 
   const kind = kindText as ActionKind;
   const action: ActionModel = {
-    id: ids.claim(raw.id, kindText),
+    id: ctx.ids.claim(raw.id, kindText),
     kind,
     displayName: asText(raw.displayName) || kindText,
   };
+
+  if (kind === "Foreach") {
+    const keys = FOREACH_KEYS[ctx.style];
+    action.loopSource = asText(raw[keys.source]);
+    action.loopValue = asText(raw[keys.value]);
+    action.body = parseActionList(raw.actions, ctx);
+
+    if (raw[keys.index] !== undefined) {
+      action.loopIndex = asText(raw[keys.index]);
+    }
+  }
 
   if (raw.path !== undefined) {
     action.path = asText(raw.path);
@@ -243,17 +268,17 @@ function parseAction(
   }
 
   if (raw.then !== undefined) {
-    action.then = parseActionList(raw.then, ids, unsupported);
+    action.then = parseActionList(raw.then, ctx);
   }
 
   if (raw.conditions !== undefined) {
-    action.conditions = parseConditions(raw.conditions, ids, unsupported);
+    action.conditions = parseConditions(raw.conditions, ctx);
   }
 
   // `If` names its fallback `else`; `ConditionGroup` names it `elseActions`.
   const fallback = raw.elseActions ?? raw.else;
   if (fallback !== undefined) {
-    action.else = parseActionList(fallback, ids, unsupported);
+    action.else = parseActionList(fallback, ctx);
   }
 
   if (kind === "If") {
@@ -327,27 +352,19 @@ function parseAgentOutput(raw: unknown): AgentOutput | null {
   return output;
 }
 
-function parseActionList(
-  raw: unknown,
-  ids: IdFactory,
-  unsupported: Set<string>,
-): ActionModel[] {
+function parseActionList(raw: unknown, ctx: ParseContext): ActionModel[] {
   return asArray(raw)
-    .map((entry) => parseAction(entry, ids, unsupported))
+    .map((entry) => parseAction(entry, ctx))
     .filter((entry): entry is ActionModel => entry !== null);
 }
 
-function parseConditions(
-  raw: unknown,
-  ids: IdFactory,
-  unsupported: Set<string>,
-): ConditionBranch[] {
+function parseConditions(raw: unknown, ctx: ParseContext): ConditionBranch[] {
   return asArray(raw)
     .filter(isRecord)
     .map((entry) => {
       const branch: ConditionBranch = {
         condition: asText(entry.condition),
-        actions: parseActionList(entry.actions, ids, unsupported),
+        actions: parseActionList(entry.actions, ctx),
       };
 
       const id = asText(entry.id);
@@ -395,7 +412,7 @@ export function parseWorkflowYaml(text: string): ParsedWorkflow {
   const trigger = isRecord(document.trigger) ? document.trigger : null;
   const style: WorkflowStyle = trigger ? "csharp" : "python";
   const unsupported = new Set<string>();
-  const ids = new IdFactory();
+  const ctx: ParseContext = { ids: new IdFactory(), unsupported, style };
 
   const rawActions = trigger ? trigger.actions : document.actions;
   if (rawActions === undefined) {
@@ -404,7 +421,7 @@ export function parseWorkflowYaml(text: string): ParsedWorkflow {
     );
   }
 
-  const actions = parseActionList(rawActions, ids, unsupported);
+  const actions = parseActionList(rawActions, ctx);
 
   return {
     style,

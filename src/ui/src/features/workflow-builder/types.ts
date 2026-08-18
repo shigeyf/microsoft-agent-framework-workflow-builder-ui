@@ -9,6 +9,9 @@ export type ActionKind =
   | "SendActivity"
   | "If"
   | "ConditionGroup"
+  | "Foreach"
+  | "BreakLoop"
+  | "ContinueLoop"
   | "InvokeAzureAgent"
   | "Question"
   | "RequestExternalInput"
@@ -68,6 +71,14 @@ export type ActionModel = {
   then?: ActionModel[];
   else?: ActionModel[];
   conditions?: ConditionBranch[];
+  /** Loop body of a Foreach; the YAML key is `actions`. */
+  body?: ActionModel[];
+  /** Collection to iterate: `items` in C#, `source` in Python. */
+  loopSource?: string;
+  /** Current element: a variable path in C# (`value`), a bare name in Python (`itemName`). */
+  loopValue?: string;
+  /** Current index: `index` in C#, `indexName` in Python. */
+  loopIndex?: string;
   thenText?: string;
   elseText?: string;
   agentName?: string;
@@ -104,6 +115,9 @@ export const actionKindOptions: ActionKind[] = [
   "SendActivity",
   "If",
   "ConditionGroup",
+  "Foreach",
+  "BreakLoop",
+  "ContinueLoop",
   "InvokeAzureAgent",
   "Question",
   "RequestExternalInput",

@@ -210,14 +210,14 @@ export function WorkflowBuilder() {
     kind: ActionKind,
     destination?: {
       parentId?: string;
-      branch?: "then" | "else";
+      branch?: "then" | "else" | "loop";
       conditionIndex?: number;
       insertAfterId?: string;
       insertAtHead?: boolean;
     },
     anchor?: { x: number; y: number },
   ) => {
-    const newAction = createAction(kind);
+    const newAction = createAction(kind, style);
     const grid = LAYOUT.newActionGrid;
     const nextIndex = actions.length;
     const nextAction = {

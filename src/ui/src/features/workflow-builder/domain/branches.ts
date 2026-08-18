@@ -8,7 +8,11 @@ export type BranchDef = {
 };
 
 export function isBranchAction(action: ActionModel): boolean {
-  return action.kind === "If" || action.kind === "ConditionGroup";
+  return (
+    action.kind === "If" ||
+    action.kind === "ConditionGroup" ||
+    action.kind === "Foreach"
+  );
 }
 
 /** Branch order shown on the canvas; also drives edge building and insertion. */
@@ -17,6 +21,12 @@ export function branchesOf(action: ActionModel): BranchDef[] {
     return [
       { ref: { branch: "then" }, label: "Then", actions: action.then ?? [] },
       { ref: { branch: "else" }, label: "Else", actions: action.else ?? [] },
+    ];
+  }
+
+  if (action.kind === "Foreach") {
+    return [
+      { ref: { branch: "loop" }, label: "Each", actions: action.body ?? [] },
     ];
   }
 
@@ -57,6 +67,10 @@ export function branchActionsOf(
 
   if (ref.branch === "else") {
     return action.else ?? [];
+  }
+
+  if (ref.branch === "loop") {
+    return action.body ?? [];
   }
 
   return action.conditions?.[ref.index]?.actions ?? [];

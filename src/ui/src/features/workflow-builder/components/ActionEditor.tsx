@@ -1,4 +1,4 @@
-import type { ActionKind, ActionModel } from "../types";
+import type { ActionKind, ActionModel, WorkflowStyle } from "../types";
 import { ActionFieldRenderer } from "./editor/ActionFieldRenderer";
 
 type ActionEditorProps = {
@@ -13,7 +13,7 @@ type ActionEditorProps = {
     kind: ActionKind,
     destination?: {
       parentId?: string;
-      branch?: "then" | "else";
+      branch?: "then" | "else" | "loop";
       conditionIndex?: number;
       insertAfterId?: string;
     },
@@ -21,6 +21,7 @@ type ActionEditorProps = {
   onAddCondition: (actionId: string) => void;
   onRemoveAction: (id: string) => void;
   gotoTargets: string[];
+  style: WorkflowStyle;
 };
 
 export function ActionEditor({
@@ -31,6 +32,7 @@ export function ActionEditor({
   onAddCondition,
   onRemoveAction,
   gotoTargets,
+  style,
 }: ActionEditorProps) {
   return (
     <div className="section-block editor-block">
@@ -59,6 +61,7 @@ export function ActionEditor({
         action={action}
         actionKindOptions={actionKindOptions}
         gotoTargets={gotoTargets}
+        style={style}
         onUpdateAction={onUpdateAction}
         onAddAction={onAddAction}
         onAddCondition={onAddCondition}

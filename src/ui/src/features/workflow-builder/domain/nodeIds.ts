@@ -9,6 +9,7 @@ export const OUTPUT_NODE_ID = "workflow:output";
 export type BranchRef =
   | { branch: "then" }
   | { branch: "else" }
+  | { branch: "loop" }
   | { branch: "condition"; index: number };
 
 export type ParsedNodeId =
@@ -34,7 +35,7 @@ export const nodeId = {
 };
 
 const CONDITION_PATTERN = /^(.*):condition-(\d+)-box$/;
-const THEN_ELSE_PATTERN = /^(.*):(then|else)-box$/;
+const NAMED_BRANCH_PATTERN = /^(.*):(then|else|loop)-box$/;
 const CONTAINER_PATTERN = /^(.*):box$/;
 
 function parseBranchId(
@@ -48,11 +49,11 @@ function parseBranchId(
     };
   }
 
-  const thenElse = THEN_ELSE_PATTERN.exec(id);
-  if (thenElse) {
+  const named = NAMED_BRANCH_PATTERN.exec(id);
+  if (named) {
     return {
-      actionId: thenElse[1],
-      ref: { branch: thenElse[2] as "then" | "else" },
+      actionId: named[1],
+      ref: { branch: named[2] as "then" | "else" | "loop" },
     };
   }
 

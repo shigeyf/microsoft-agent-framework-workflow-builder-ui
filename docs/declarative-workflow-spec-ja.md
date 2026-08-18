@@ -355,9 +355,9 @@ Microsoft Learn の Actions Quick Reference は 2 か所にあり、内容が食
 | `EditTableV2`                  | ○      | ○   | —        |
 | `If`                           | ○      | ○   | ○        |
 | `ConditionGroup`               | ○      | ○   | ○        |
-| `Foreach`                      | ○ ※    | ○ ※ | —        |
-| `BreakLoop`                    | ○      | ○   | —        |
-| `ContinueLoop`                 | ○      | ○   | —        |
+| `Foreach`                      | ○ ※    | ○ ※ | ○        |
+| `BreakLoop`                    | ○      | ○   | ○        |
+| `ContinueLoop`                 | ○      | ○   | ○        |
 | `GotoAction`                   | ○      | ○   | ○        |
 | `SendActivity`                 | ○      | ○   | ○        |
 | `InvokeAzureAgent`             | ○      | ○   | ○        |

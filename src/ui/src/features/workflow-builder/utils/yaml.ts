@@ -1,4 +1,5 @@
 import { stringify } from "yaml";
+import { FOREACH_KEYS } from "./parseYaml";
 import type {
   ActionModel,
   AgentInput,
@@ -179,14 +180,22 @@ function renderRequiredList(
   actions: ActionModel[],
   key: string,
   indent: string,
+  style: WorkflowStyle,
   childIndentLevel: number,
 ): string[] {
   return actions.length === 0
     ? [`${indent}${key}: []`]
-    : [`${indent}${key}:`, ...renderActionList(actions, childIndentLevel)];
+    : [
+        `${indent}${key}:`,
+        ...renderActionList(actions, style, childIndentLevel),
+      ];
 }
 
-function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
+function renderActionList(
+  actions: ActionModel[],
+  style: WorkflowStyle,
+  indentLevel = 2,
+): string[] {
   const indent = " ".repeat(indentLevel);
 
   return actions.flatMap((action) => {
@@ -229,13 +238,14 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
             action.then ?? [],
             "then",
             `${indent}  `,
+            style,
             indentLevel + 4,
           ),
         );
 
         if (action.else && action.else.length > 0) {
           lines.push(`${indent}  else:`);
-          lines.push(...renderActionList(action.else, indentLevel + 4));
+          lines.push(...renderActionList(action.else, style, indentLevel + 4));
         }
         break;
       }
@@ -260,6 +270,7 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
               condition.actions,
               "actions",
               `${indent}      `,
+              style,
               indentLevel + 8,
             ),
           );
@@ -267,7 +278,7 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
 
         if (action.else && action.else.length > 0) {
           lines.push(`${indent}  elseActions:`);
-          lines.push(...renderActionList(action.else, indentLevel + 4));
+          lines.push(...renderActionList(action.else, style, indentLevel + 4));
         }
         break;
       }
@@ -386,6 +397,29 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
         }
         break;
       }
+      case "Foreach": {
+        const keys = FOREACH_KEYS[style];
+
+        lines.push(
+          ...field(`${indent}  `, keys.source, action.loopSource ?? ""),
+        );
+        lines.push(...field(`${indent}  `, keys.value, action.loopValue ?? ""));
+
+        if (action.loopIndex) {
+          lines.push(...field(`${indent}  `, keys.index, action.loopIndex));
+        }
+
+        lines.push(
+          ...renderRequiredList(
+            action.body ?? [],
+            "actions",
+            `${indent}  `,
+            style,
+            indentLevel + 4,
+          ),
+        );
+        break;
+      }
       default:
         break;
     }
@@ -411,7 +445,7 @@ export function buildYaml(
     )
     .join("\n");
 
-  const actionsYaml = renderActionList(actions).join("\n");
+  const actionsYaml = renderActionList(actions, style).join("\n");
 
   if (style === "csharp") {
     const indentedActions = actionsYaml

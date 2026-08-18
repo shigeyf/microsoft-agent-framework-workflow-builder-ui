@@ -47,17 +47,19 @@ Microsoft Agent Framework の宣言型ワークフロー仕様をもとに、YAM
 
 対応可否の根拠は `declarative-workflow-spec-ja.md` の 6.9 節を参照。
 
+※ `Foreach` は両言語に存在するがプロパティ名が異なるため、選択中の Style に応じて `items` / `value` / `index`（C#）と `source` / `itemName` / `indexName`（Python）を使い分ける。入力欄のラベルも Style で切り替わる。
+
 ### 3.3 未対応のアクション
 
 下記は専用の編集フォームを持たない。いずれも Python / C# の両方で使える。
 
 | kind | 対応に必要なもの |
 | --- | --- |
-| `Foreach` | `actions` を持つコンテナ型のため、`If` と同じ枠描画が必要 |
-| `BreakLoop` / `ContinueLoop` | プロパティなし。カード表示のみで足りる |
-| `EndConversation` | プロパティなし |
+| `EndConversation` | プロパティなし。カード表示のみで足りる |
 | `SetMultipleVariables` | `assignments` 配列の編集 UI |
 | `ParseValue` | `variable` / `value` / `valueType` |
+| `SetTextVariable` / `ResetVariable` / `ClearAllVariables` | 単一の変数指定 |
+| `EditTable` / `EditTableV2` | テーブル操作の UI |
 | 会話操作系 | C# 専用。スタイル別フィルタとの連携が必要 |
 
 これらを含む YAML を読み込んでも、未解釈のプロパティは `extra` に保持され、再出力で失われない。実際のスキーマは `declarative-workflow-spec-ja.md` の 6.10 節に記載している。
@@ -133,12 +135,11 @@ src/ui/src/features/workflow-builder/
 2. **プロパティ網羅テスト** — 元 YAML と再出力 YAML のプロパティパスを比較し、欠落を検出する。往復テストは読み書き双方が無視するフィールドを検出できないため、その死角を埋める
 3. **レイアウト不変条件** — カード同士が重ならないこと、コンテナ枠が自分の部分木だけを覆うこと、分岐末尾の `+` がネストしたコンテナの内側に入らないこと
 
-テストデータには公式サンプル 9 件をそのまま fixture として使用する。
+テストデータには公式サンプル 11 件をそのまま fixture として使用する。C# の単体テスト由来の `loop_each` / `loop_break` を含む。
 
 ## 7. 残課題
 
-- `Foreach` の対応。`actions` を持つコンテナ型のため、`If` / `ConditionGroup` と同様の枠描画が必要
-- `BreakLoop` / `ContinueLoop` / `SetMultipleVariables` / `EndConversation` / `ParseValue` の専用フォーム。現状は `extra` で内容を保持するのみ
+- `SetMultipleVariables` / `ParseValue` / `EndConversation` などの専用フォーム。現状は `extra` で内容を保持するのみ
 - C# 専用アクション（会話操作など）の対応
 - 手動で追加したアクションの自動整列
 - `GraphCanvas.tsx` の分割

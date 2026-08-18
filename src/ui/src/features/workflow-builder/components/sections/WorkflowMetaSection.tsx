@@ -17,7 +17,7 @@ type WorkflowMetaSectionProps = {
     kind: ActionKind,
     destination?: {
       parentId?: string;
-      branch?: "then" | "else";
+      branch?: "then" | "else" | "loop";
       insertAfterId?: string;
     },
   ) => void;

@@ -3,6 +3,7 @@ import type {
   ActionModel,
   AgentInput,
   AgentOutput,
+  WorkflowStyle,
 } from "../../types";
 import { KeyValueRows } from "./KeyValueRows";
 
@@ -31,7 +32,7 @@ type ActionFieldRendererProps = {
     kind: ActionKind,
     destination?: {
       parentId?: string;
-      branch?: "then" | "else";
+      branch?: "then" | "else" | "loop";
       conditionIndex?: number;
       insertAfterId?: string;
     },
@@ -39,6 +40,7 @@ type ActionFieldRendererProps = {
   onAddCondition: (actionId: string) => void;
   /** Ids GotoAction is allowed to jump to. */
   gotoTargets: string[];
+  style: WorkflowStyle;
 };
 
 export function ActionFieldRenderer({
@@ -48,6 +50,7 @@ export function ActionFieldRenderer({
   onAddAction,
   onAddCondition,
   gotoTargets,
+  style,
 }: ActionFieldRendererProps) {
   if (action.kind === "SetValue" || action.kind === "SetVariable") {
     return (
@@ -501,6 +504,81 @@ export function ActionFieldRenderer({
           </>
         )}
       </>
+    );
+  }
+
+  if (action.kind === "Foreach") {
+    const isCsharp = style === "csharp";
+
+    return (
+      <>
+        <label>
+          <span>{isCsharp ? "Items" : "Source"}</span>
+          <input
+            value={action.loopSource ?? ""}
+            onChange={(event) =>
+              onUpdateAction(action.id, "loopSource", event.target.value)
+            }
+          />
+        </label>
+        <label>
+          <span>{isCsharp ? "Value variable" : "Item name"}</span>
+          <input
+            value={action.loopValue ?? ""}
+            placeholder={isCsharp ? "Local.LoopValue" : "item"}
+            onChange={(event) =>
+              onUpdateAction(action.id, "loopValue", event.target.value)
+            }
+          />
+        </label>
+        <label>
+          <span>{isCsharp ? "Index variable" : "Index name"}</span>
+          <input
+            value={action.loopIndex ?? ""}
+            placeholder={isCsharp ? "Local.LoopIndex" : "index"}
+            onChange={(event) =>
+              onUpdateAction(action.id, "loopIndex", event.target.value)
+            }
+          />
+        </label>
+        <p className="field-note">
+          {isCsharp
+            ? "変数のパスを指定します。"
+            : "変数名を指定します。実際の変数は Local. が付きます。"}
+        </p>
+
+        <div className="inspector-actions-row">
+          <select
+            className="action-select"
+            value=""
+            onChange={(event) => {
+              const nextKind = event.target.value as ActionKind;
+              if (nextKind) {
+                onAddAction(nextKind, { parentId: action.id, branch: "loop" });
+              }
+              event.target.value = "";
+            }}
+          >
+            <option value="">+ Loop action</option>
+            {actionKindOptions.map((kind) => (
+              <option key={kind} value={kind}>
+                {kind}
+              </option>
+            ))}
+          </select>
+        </div>
+      </>
+    );
+  }
+
+  if (action.kind === "BreakLoop" || action.kind === "ContinueLoop") {
+    return (
+      <p className="field-note">
+        {action.kind === "BreakLoop"
+          ? "Foreach を抜けます。"
+          : "次の反復へ進みます。"}
+        設定項目はありません。
+      </p>
     );
   }
 

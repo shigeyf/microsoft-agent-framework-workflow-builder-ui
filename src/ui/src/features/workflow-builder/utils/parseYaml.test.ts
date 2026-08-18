@@ -6,6 +6,8 @@ import humanInLoop from "./__fixtures__/human_in_loop.yaml?raw";
 import invokeFunctionTool from "./__fixtures__/invoke_function_tool.yaml?raw";
 import invokeHttpRequest from "./__fixtures__/invoke_http_request.yaml?raw";
 import invokeMcpTool from "./__fixtures__/invoke_mcp_tool.yaml?raw";
+import loopBreak from "./__fixtures__/loop_break.yaml?raw";
+import loopEach from "./__fixtures__/loop_each.yaml?raw";
 import marketing from "./__fixtures__/marketing.yaml?raw";
 import simpleWorkflow from "./__fixtures__/simple_workflow.yaml?raw";
 import studentTeacher from "./__fixtures__/student_teacher.yaml?raw";
@@ -29,6 +31,8 @@ const SAMPLES = {
   invoke_mcp_tool: invokeMcpTool,
   invoke_http_request: invokeHttpRequest,
   marketing: marketing,
+  loop_each: loopEach,
+  loop_break: loopBreak,
 };
 
 const SAMPLE_NAMES = Object.keys(SAMPLES) as (keyof typeof SAMPLES)[];
@@ -283,6 +287,61 @@ describe("parseWorkflowYaml with official Agent Framework samples", () => {
     },
   );
 
+  it("maps the csharp Foreach property names", () => {
+    const parsed = parseWorkflowYaml(readSample("loop_each"));
+    const loop = parsed.actions[0];
+
+    expect(loop.kind).toBe("Foreach");
+    expect(loop.loopSource).toBe('=["a", "b", "c", "d", "e", "f"]');
+    expect(loop.loopValue).toBe("Local.LoopValue");
+    expect(loop.loopIndex).toBe("Local.LoopIndex");
+    expect(loop.body?.map((action) => action.kind)).toEqual([
+      "SetVariable",
+      "SendActivity",
+    ]);
+  });
+
+  it("maps the python Foreach property names", () => {
+    const parsed = parseWorkflowYaml(
+      [
+        "name: loop",
+        "actions:",
+        "  - kind: Foreach",
+        "    id: each",
+        "    source: =Local.items",
+        "    itemName: entry",
+        "    indexName: position",
+        "    actions:",
+        "      - kind: BreakLoop",
+        "        id: stop",
+        "",
+      ].join("\n"),
+    );
+    const loop = parsed.actions[0];
+
+    expect(loop.loopSource).toBe("=Local.items");
+    expect(loop.loopValue).toBe("entry");
+    expect(loop.loopIndex).toBe("position");
+    expect(loop.body?.[0].kind).toBe("BreakLoop");
+  });
+
+  it("keeps BreakLoop inside the loop container on the canvas", () => {
+    const parsed = parseWorkflowYaml(readSample("loop_break"));
+    const actions = autoLayout(parsed.actions).actions;
+    const nodes = buildNodes(actions, [], {
+      start: { x: 0, y: 0 },
+      output: { x: 0, y: 0 },
+    });
+
+    expect(nodes.find((node) => node.id === "foreach_loop:box")).toBeDefined();
+    expect(
+      nodes.find((node) => node.id === "foreach_loop:loop-box")?.displayName,
+    ).toBe("Each");
+    expect(
+      buildEdges(actions, []).map((edge) => `${edge.from}->${edge.to}`),
+    ).toContain("foreach_loop:loop-box->break_loop_now");
+  });
+
   it("detects the python style and typed inputs", () => {
     const parsed = parseWorkflowYaml(readSample("conditional_workflow"));
 
@@ -375,10 +434,10 @@ describe("parseWorkflowYaml with official Agent Framework samples", () => {
     ).toEqual([]);
 
     const parsed = parseWorkflowYaml(
-      "name: w\nactions:\n  - kind: Foreach\n    source: =Local.items\n",
+      "name: w\nactions:\n  - kind: SetMultipleVariables\n    assignments: []\n",
     );
 
-    expect(parsed.unsupportedKinds).toEqual(["Foreach"]);
+    expect(parsed.unsupportedKinds).toEqual(["SetMultipleVariables"]);
   });
 
   it("flags actions the detected style cannot run", () => {

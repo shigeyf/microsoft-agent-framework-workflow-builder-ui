@@ -2,7 +2,7 @@ import type { ActionModel } from "../types";
 import type { BranchRef } from "./nodeIds";
 
 /**
- * Every recursion over then / else / conditions lives here.
+ * Every recursion over then / else / conditions / loop body lives here.
  * Other modules compose these helpers instead of walking the tree themselves.
  */
 function mapBranchLists(
@@ -13,6 +13,7 @@ function mapBranchLists(
     ...action,
     then: action.then ? fn(action.then) : action.then,
     else: action.else ? fn(action.else) : action.else,
+    body: action.body ? fn(action.body) : action.body,
     conditions: action.conditions
       ? action.conditions.map((condition) => ({
           ...condition,
@@ -26,6 +27,7 @@ export function childrenOf(action: ActionModel): ActionModel[] {
   return [
     ...(action.then ?? []),
     ...(action.else ?? []),
+    ...(action.body ?? []),
     ...(action.conditions?.flatMap((condition) => condition.actions) ?? []),
   ];
 }
@@ -122,6 +124,10 @@ export function insertIntoBranch(
             : condition,
         ),
       };
+    }
+
+    if (ref.branch === "loop") {
+      return { ...action, body: place(action.body ?? []) };
     }
 
     return { ...action, [ref.branch]: place(action[ref.branch] ?? []) };

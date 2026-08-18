@@ -100,7 +100,7 @@ type FlowNodeData = {
   kind: "input" | "process" | "output" | "branch";
   label: string;
   meta?: string;
-  branchKind?: "container" | "then" | "else" | "condition" | "adder";
+  branchKind?: "container" | "then" | "else" | "loop" | "condition" | "adder";
   width?: number;
   height?: number;
   collapsed?: boolean;
@@ -119,6 +119,7 @@ function FlowNodeCard({ id, data, selected }: NodeProps) {
   const isBranchSlot =
     nodeData.branchKind === "then" ||
     nodeData.branchKind === "else" ||
+    nodeData.branchKind === "loop" ||
     nodeData.branchKind === "condition";
 
   if (isAdder) {

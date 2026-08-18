@@ -27,7 +27,7 @@ type InspectorPanelProps = {
     kind: ActionKind,
     destination?: {
       parentId?: string;
-      branch?: "then" | "else";
+      branch?: "then" | "else" | "loop";
       conditionIndex?: number;
       insertAfterId?: string;
     },
@@ -141,6 +141,7 @@ export function InspectorPanel({
           <ActionEditor
             action={action}
             actionKindOptions={actionKindOptions}
+            style={style}
             gotoTargets={flattenActions(actions)
               .map((item) => item.id)
               .filter((id) => id !== action.id)}
