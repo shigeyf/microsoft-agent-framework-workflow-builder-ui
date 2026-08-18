@@ -7,6 +7,7 @@ type WorkflowMetaSectionProps = {
   style: "python" | "csharp";
   kindsFor: (nodeId: string | null) => ActionKind[];
   inputs: InputParam[];
+  disabled?: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onTriggerChange: (value: string) => void;
@@ -30,6 +31,7 @@ export function WorkflowMetaSection({
   style,
   kindsFor,
   inputs,
+  disabled = false,
   onNameChange,
   onDescriptionChange,
   onTriggerChange,
@@ -44,6 +46,7 @@ export function WorkflowMetaSection({
         <span>Name</span>
         <input
           value={name}
+          disabled={disabled}
           onChange={(event) => onNameChange(event.target.value)}
         />
       </label>
@@ -52,6 +55,7 @@ export function WorkflowMetaSection({
         <span>Description</span>
         <textarea
           value={description}
+          disabled={disabled}
           onChange={(event) => onDescriptionChange(event.target.value)}
         />
       </label>
@@ -61,6 +65,7 @@ export function WorkflowMetaSection({
           <span>Trigger</span>
           <select
             value={triggerKind}
+            disabled={disabled}
             onChange={(event) => onTriggerChange(event.target.value)}
           >
             <option value="OnConversationStart">OnConversationStart</option>
@@ -70,7 +75,12 @@ export function WorkflowMetaSection({
 
       <div className="section-header">
         <span className="section-label">Inputs</span>
-        <button type="button" className="secondary-button" onClick={onAddInput}>
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={disabled}
+          onClick={onAddInput}
+        >
           + Input
         </button>
       </div>
@@ -84,6 +94,7 @@ export function WorkflowMetaSection({
               <button
                 type="button"
                 className="input-item"
+                disabled={disabled}
                 onClick={() => onSelectInput(input.name)}
               >
                 <strong>{input.name}</strong>
@@ -93,6 +104,7 @@ export function WorkflowMetaSection({
                 type="button"
                 className="input-remove-button"
                 title="Remove input"
+                disabled={disabled}
                 onClick={() => onRemoveInput(index)}
               >
                 ×
@@ -107,6 +119,7 @@ export function WorkflowMetaSection({
         <select
           className="action-select"
           value=""
+          disabled={disabled}
           onChange={(event) => {
             const nextKind = event.target.value as ActionKind;
             if (nextKind) {

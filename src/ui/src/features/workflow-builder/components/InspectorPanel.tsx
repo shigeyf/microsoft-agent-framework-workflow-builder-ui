@@ -17,6 +17,7 @@ type InspectorPanelProps = {
   description: string;
   triggerKind: string;
   style: "python" | "csharp";
+  isLocked?: boolean;
   kindsFor: (nodeId: string | null) => ActionKind[];
   onClose: () => void;
   onNameChange: (value: string) => void;
@@ -57,6 +58,7 @@ export function InspectorPanel({
   description,
   triggerKind,
   style,
+  isLocked = false,
   kindsFor,
   onClose,
   onNameChange,
@@ -126,6 +128,7 @@ export function InspectorPanel({
               style={style}
               kindsFor={kindsFor}
               inputs={inputs}
+              disabled={isLocked}
               onNameChange={onNameChange}
               onDescriptionChange={onDescriptionChange}
               onTriggerChange={onTriggerChange}
@@ -142,6 +145,7 @@ export function InspectorPanel({
             action={action}
             kindsFor={kindsFor}
             style={style}
+            disabled={isLocked}
             gotoTargets={flattenActions(actions)
               .map((item) => item.id)
               .filter((id) => id !== action.id)}
@@ -158,6 +162,7 @@ export function InspectorPanel({
               <span>Name</span>
               <input
                 value={input.name}
+                disabled={isLocked}
                 onChange={(event) =>
                   onUpdateInput(inputIndex, "name", event.target.value)
                 }
@@ -168,6 +173,7 @@ export function InspectorPanel({
               <span>Type</span>
               <select
                 value={input.type}
+                disabled={isLocked}
                 onChange={(event) =>
                   onUpdateInput(inputIndex, "type", event.target.value)
                 }
@@ -183,6 +189,7 @@ export function InspectorPanel({
               <span>Description</span>
               <input
                 value={input.description}
+                disabled={isLocked}
                 onChange={(event) =>
                   onUpdateInput(inputIndex, "description", event.target.value)
                 }
@@ -192,6 +199,7 @@ export function InspectorPanel({
             <button
               type="button"
               className="danger-button"
+              disabled={isLocked}
               onClick={() => onRemoveInput(inputIndex)}
             >
               Remove input

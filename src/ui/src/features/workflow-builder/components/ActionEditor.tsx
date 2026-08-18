@@ -5,6 +5,7 @@ import { ActionFieldRenderer } from "./editor/ActionFieldRenderer";
 type ActionEditorProps = {
   action: ActionModel;
   kindsFor: (nodeId: string | null) => ActionKind[];
+  disabled?: boolean;
   onUpdateAction: <K extends keyof ActionModel>(
     id: string,
     field: K,
@@ -28,6 +29,7 @@ type ActionEditorProps = {
 export function ActionEditor({
   action,
   kindsFor,
+  disabled = false,
   onUpdateAction,
   onAddAction,
   onAddCondition,
@@ -42,6 +44,7 @@ export function ActionEditor({
         <button
           type="button"
           className="danger-button"
+          disabled={disabled}
           onClick={() => onRemoveAction(action.id)}
         >
           Delete
@@ -52,6 +55,7 @@ export function ActionEditor({
         <span>Label</span>
         <input
           value={action.displayName}
+          disabled={disabled}
           onChange={(event) =>
             onUpdateAction(action.id, "displayName", event.target.value)
           }
@@ -72,6 +76,7 @@ export function ActionEditor({
         <select
           className="action-select accent"
           value=""
+          disabled={disabled}
           onChange={(event) => {
             const nextKind = event.target.value as ActionKind;
             if (nextKind) {

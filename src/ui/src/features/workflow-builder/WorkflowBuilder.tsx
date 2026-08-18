@@ -57,6 +57,14 @@ function importWarning(parsed: ParsedWorkflow): string {
   return notes.join(" / ");
 }
 
+const guardEditable = (isLocked: boolean) => {
+  if (isLocked) {
+    return false;
+  }
+
+  return true;
+};
+
 export function WorkflowBuilder() {
   const [style, setStyle] = useState<WorkflowStyle>("python");
   const [name, setName] = useState(DEFAULT_NAME);
@@ -65,6 +73,7 @@ export function WorkflowBuilder() {
   const [inputs, setInputs] = useState<InputParam[]>(defaultInputs);
   const [actions, setActions] = useState<ActionModel[]>(defaultActions);
   const [collapsedActionIds, setCollapsedActionIds] = useState<string[]>([]);
+  const [isLocked, setIsLocked] = useState(false);
   const [selectedActionId, setSelectedActionId] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -113,12 +122,20 @@ export function WorkflowBuilder() {
     deltaX: number,
     deltaY: number,
   ) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     setActions((previous) =>
       translateSubtree(previous, actionId, deltaX, deltaY),
     );
   };
 
   const toggleBranchCollapse = (actionId: string) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     setCollapsedActionIds((previous) =>
       previous.includes(actionId)
         ? previous.filter((id) => id !== actionId)
@@ -127,6 +144,10 @@ export function WorkflowBuilder() {
   };
 
   const removeCondition = (actionId: string, conditionIndex: number) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     commitActions(
       updateActionInTree(actions, actionId, (action) => ({
         ...action,
@@ -147,6 +168,10 @@ export function WorkflowBuilder() {
     field: "name" | "type" | "description",
     value: string,
   ) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     setInputs((previous) =>
       previous.map((input, currentIndex) => {
         if (currentIndex !== index) {
@@ -166,12 +191,20 @@ export function WorkflowBuilder() {
     field: K,
     value: ActionModel[K],
   ) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     setActions((previous) =>
       updateActionInTree(previous, id, { [field]: value }),
     );
   };
 
   const addInput = () => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     const nextInput: InputParam = {
       name: `param${inputs.length + 1}`,
       type: "string",
@@ -182,6 +215,10 @@ export function WorkflowBuilder() {
   };
 
   const removeInput = (index: number) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     setInputs((previous) =>
       previous.filter((_, currentIndex) => currentIndex !== index),
     );
@@ -227,6 +264,10 @@ export function WorkflowBuilder() {
     },
     anchor?: { x: number; y: number },
   ) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     // Coordinates are assigned by the relayout below, so none are set here.
     const nextAction = createAction(kind, style);
 
@@ -270,6 +311,10 @@ export function WorkflowBuilder() {
   };
 
   const addCondition = (actionId: string) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     commitActions(
       updateActionInTree(actions, actionId, (action) => ({
         ...action,
@@ -282,6 +327,10 @@ export function WorkflowBuilder() {
   };
 
   const removeAction = (id: string) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     commitActions(removeActionFromTree(actions, id));
     closeInspector();
   };
@@ -292,6 +341,10 @@ export function WorkflowBuilder() {
     mode: "after" | "branch-append" = "after",
     anchor?: { x: number; y: number },
   ) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     const source = parseNodeId(sourceId);
 
     if (source.kind === "branch" || source.kind === "branchAdder") {
@@ -345,6 +398,10 @@ export function WorkflowBuilder() {
   };
 
   const importYaml = (text: string) => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     let parsed;
 
     try {
@@ -366,6 +423,10 @@ export function WorkflowBuilder() {
   };
 
   const resetWorkflow = () => {
+    if (!guardEditable(isLocked)) {
+      return;
+    }
+
     setName(DEFAULT_NAME);
     setDescription("");
     setTriggerKind("OnConversationStart");
@@ -439,6 +500,10 @@ export function WorkflowBuilder() {
             connections={workflowConnections}
             selectedActionId={actionBySelectedId}
             kindsFor={kindsFor}
+            isLocked={isLocked}
+            onInteractiveChange={(nextInteractive) =>
+              setIsLocked(!nextInteractive)
+            }
             onSelectAction={(nodeId, anchor) =>
               handleNodeSelection(nodeId, "action", anchor)
             }
@@ -449,7 +514,13 @@ export function WorkflowBuilder() {
             onToggleBranchCollapse={toggleBranchCollapse}
             onAddCondition={addCondition}
             onRemoveCondition={removeCondition}
-            onAutoArrange={() => commitActions(actions)}
+            onAutoArrange={() => {
+              if (!guardEditable(isLocked)) {
+                return;
+              }
+
+              commitActions(actions);
+            }}
             onSelectWorkflow={(anchor) =>
               handleNodeSelection(START_NODE_ID, "workflow", anchor)
             }
@@ -466,10 +537,29 @@ export function WorkflowBuilder() {
               triggerKind={triggerKind}
               style={style}
               kindsFor={kindsFor}
+              isLocked={isLocked}
               onClose={closeInspector}
-              onNameChange={setName}
-              onDescriptionChange={setDescription}
-              onTriggerChange={setTriggerKind}
+              onNameChange={(value) => {
+                if (!guardEditable(isLocked)) {
+                  return;
+                }
+
+                setName(value);
+              }}
+              onDescriptionChange={(value) => {
+                if (!guardEditable(isLocked)) {
+                  return;
+                }
+
+                setDescription(value);
+              }}
+              onTriggerChange={(value) => {
+                if (!guardEditable(isLocked)) {
+                  return;
+                }
+
+                setTriggerKind(value);
+              }}
               onAddInput={addInput}
               onAddAction={addAction}
               onAddCondition={addCondition}

@@ -43,6 +43,8 @@ type GraphCanvasProps = {
   connections: WorkflowConnection[];
   selectedActionId: string;
   kindsFor: (nodeId: string | null) => ActionKind[];
+  isLocked?: boolean;
+  onInteractiveChange?: (interactive: boolean) => void;
   onSelectAction: (id: string, anchor: { x: number; y: number }) => void;
   onUpdateAction: <K extends keyof ActionModel>(
     id: string,
@@ -310,6 +312,8 @@ export function GraphCanvas({
   connections,
   selectedActionId,
   kindsFor,
+  isLocked = false,
+  onInteractiveChange,
   onSelectAction,
   onUpdateAction,
   onUpdateNodePosition,
@@ -418,13 +422,17 @@ export function GraphCanvas({
 
   const handleToggleCollapse = useCallback(
     (id: string) => {
+      if (isLocked) {
+        return;
+      }
+
       const parsed = parseNodeId(id);
 
       if (parsed.kind === "container") {
         onToggleBranchCollapse?.(parsed.actionId);
       }
     },
-    [onToggleBranchCollapse],
+    [isLocked, onToggleBranchCollapse],
   );
 
   const handleAddCondition = useCallback(
@@ -466,9 +474,11 @@ export function GraphCanvas({
         onRemoveCondition: handleRemoveCondition,
       },
       zIndex: node.branchKind === "container" ? 0 : 1,
-      draggable: node.kind !== "branch" || node.branchKind === "container",
-      selectable: node.kind !== "branch",
-      connectable: node.kind !== "branch",
+      draggable:
+        !isLocked &&
+        (node.kind !== "branch" || node.branchKind === "container"),
+      selectable: !isLocked && node.kind !== "branch",
+      connectable: !isLocked && node.kind !== "branch",
       selected: node.kind === "process" && node.id === selectedActionId,
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
@@ -478,6 +488,7 @@ export function GraphCanvas({
       handleToggleCollapse,
       handleAddCondition,
       handleRemoveCondition,
+      isLocked,
       selectedActionId,
     ],
   );
@@ -570,7 +581,9 @@ export function GraphCanvas({
       }
 
       if (parsed.kind === "start" || parsed.kind === "output") {
-        onUpdateNodePosition(change.id, change.position.x, change.position.y);
+        if (!isLocked) {
+          onUpdateNodePosition(change.id, change.position.x, change.position.y);
+        }
         continue;
       }
 
@@ -593,6 +606,10 @@ export function GraphCanvas({
           edges={reactFlowEdges}
           onNodesChange={handleNodesChange}
           onNodeDragStart={(_, node) => {
+            if (isLocked) {
+              return;
+            }
+
             setDragging(true);
 
             if (parseNodeId(node.id).kind === "container") {
@@ -604,6 +621,10 @@ export function GraphCanvas({
             }
           }}
           onNodeDragStop={(_, node) => {
+            if (isLocked) {
+              return;
+            }
+
             setDragging(false);
 
             const start = containerDragStartRef.current;
@@ -622,6 +643,10 @@ export function GraphCanvas({
           onPaneClick={() => setConnectorPicker(null)}
           onMoveStart={() => setConnectorPicker(null)}
           onNodeClick={(event, node) => {
+            if (isLocked) {
+              return;
+            }
+
             setConnectorPicker(null);
 
             if (node.type !== "flowNode") {
@@ -649,9 +674,9 @@ export function GraphCanvas({
             animated: false,
           }}
           connectionLineType={ConnectionLineType.SmoothStep}
-          nodesDraggable
-          nodesConnectable
-          elementsSelectable
+          nodesDraggable={!isLocked}
+          nodesConnectable={!isLocked}
+          elementsSelectable={!isLocked}
           proOptions={{ hideAttribution: true }}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -659,8 +684,20 @@ export function GraphCanvas({
           style={{ width: "100%", height: "100%" }}
         >
           <Background color="#334155" gap={24} size={1} />
-          <Controls position="bottom-right">
-            <ControlButton onClick={onAutoArrange} title="Auto arrange">
+          <Controls
+            position="bottom-right"
+            onInteractiveChange={(nextInteractive) =>
+              onInteractiveChange?.(nextInteractive)
+            }
+          >
+            <ControlButton
+              onClick={() => {
+                if (!isLocked) {
+                  onAutoArrange();
+                }
+              }}
+              title="Auto arrange"
+            >
               <svg viewBox="0 0 16 16" aria-label="Auto arrange">
                 <rect x="1" y="6" width="4" height="4" rx="1" />
                 <rect x="11" y="1" width="4" height="4" rx="1" />
