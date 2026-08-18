@@ -28,33 +28,48 @@ Microsoft Agent Framework の宣言型ワークフロー仕様をもとに、YAM
 
 ### 3.2 対応アクション
 
-| kind | Python | C# |
-| --- | --- | --- |
-| `SetValue` | ○ | — |
-| `SetVariable` | ○ | ○ |
-| `SendActivity` | ○ | ○ |
-| `If` | ○ | ○ |
-| `ConditionGroup` | ○ | ○ |
-| `InvokeAzureAgent` | ○ | ○ |
-| `Question` | ○ | ○ |
-| `RequestExternalInput` | ○ | ○ |
-| `GotoAction` | ○ | ○ |
-| `CreateConversation` | ○ | ○ |
-| `EndWorkflow` | ○ | ○ |
-| `InvokeFunctionTool` | ○ | ○ |
-| `InvokeMcpTool` | ○ | ○ |
-| `HttpRequestAction` | ○ | ○ |
+| kind                   | Python | C#  |
+| ---------------------- | ------ | --- |
+| `SetValue`             | ○      | —   |
+| `SetVariable`          | ○      | ○   |
+| `SendActivity`         | ○      | ○   |
+| `If`                   | ○      | ○   |
+| `ConditionGroup`       | ○      | ○   |
+| `InvokeAzureAgent`     | ○      | ○   |
+| `Question`             | ○      | ○   |
+| `RequestExternalInput` | ○      | ○   |
+| `GotoAction`           | ○      | ○   |
+| `CreateConversation`   | ○      | ○   |
+| `EndWorkflow`          | ○      | ○   |
+| `InvokeFunctionTool`   | ○      | ○   |
+| `InvokeMcpTool`        | ○      | ○   |
+| `HttpRequestAction`    | ○      | ○   |
 
 対応可否の根拠は `declarative-workflow-spec-ja.md` の 6.9 節を参照。
 
-### 3.3 YAML の入出力
+### 3.3 未対応のアクション
+
+下記は専用の編集フォームを持たない。いずれも Python / C# の両方で使える。
+
+| kind | 対応に必要なもの |
+| --- | --- |
+| `Foreach` | `actions` を持つコンテナ型のため、`If` と同じ枠描画が必要 |
+| `BreakLoop` / `ContinueLoop` | プロパティなし。カード表示のみで足りる |
+| `EndConversation` | プロパティなし |
+| `SetMultipleVariables` | `assignments` 配列の編集 UI |
+| `ParseValue` | `variable` / `value` / `valueType` |
+| 会話操作系 | C# 専用。スタイル別フィルタとの連携が必要 |
+
+これらを含む YAML を読み込んでも、未解釈のプロパティは `extra` に保持され、再出力で失われない。実際のスキーマは `declarative-workflow-spec-ja.md` の 6.10 節に記載している。
+
+### 3.4 YAML の入出力
 
 - 入力内容から C# 形式 / Python 形式の YAML をリアルタイム生成
 - クリップボードへのコピー
 - ローカルファイルの読み込み
 - 公式サンプル 12 件を URL から取得して描画
 
-### 3.4 スタイルの扱い
+### 3.5 スタイルの扱い
 
 2 つの形式は相互変換できないため、アクションまたは入力が 1 つでもある間は Style を変更できない。作り直すための `New workflow` ボタンを用意している。
 

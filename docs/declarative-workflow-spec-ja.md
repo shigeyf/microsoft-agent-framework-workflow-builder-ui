@@ -242,16 +242,16 @@ condition: =Local.age >= 18
 
 `input` / `output` のプロパティは次のとおり。
 
-| プロパティ | 説明 |
-| --- | --- |
-| `agent.name` | 必須。登録済みエージェント名 |
-| `conversationId` | 会話コンテキスト |
-| `input.messages` | エージェントへ渡すメッセージ |
-| `input.arguments` | 任意キーの引数マップ |
-| `input.externalLoop.when` | 真の間、呼び出しを繰り返す |
-| `output.responseObject` | 応答オブジェクトの格納先 |
-| `output.messages` | 会話メッセージの格納先 |
-| `output.autoSend` | 応答を自動送信するか |
+| プロパティ                | 説明                         |
+| ------------------------- | ---------------------------- |
+| `agent.name`              | 必須。登録済みエージェント名 |
+| `conversationId`          | 会話コンテキスト             |
+| `input.messages`          | エージェントへ渡すメッセージ |
+| `input.arguments`         | 任意キーの引数マップ         |
+| `input.externalLoop.when` | 真の間、呼び出しを繰り返す   |
+| `output.responseObject`   | 応答オブジェクトの格納先     |
+| `output.messages`         | 会話メッセージの格納先       |
+| `output.autoSend`         | 応答を自動送信するか         |
 
 `output.responseObject` と `output.messages` は**別のプロパティ**であり、片方の別名ではない。また `output` は後続アクションが参照する変数の代入元になるため、ここを落とすと「代入されていない変数を参照する」壊れたワークフローになる。
 
@@ -338,36 +338,151 @@ Microsoft Learn の Actions Quick Reference は 2 か所にあり、内容が食
 - Python: `python/packages/declarative/agent_framework_declarative/_workflows/_declarative_builder.py` の `ALL_ACTION_EXECUTORS`、および同ファイル内で構造として特別扱いされる制御構文
 - C#: `dotnet/src/Microsoft.Agents.AI.Workflows.Declarative/Interpreter/WorkflowActionVisitor.cs` の `Visit(...)` 群
 
-両方で使えるもの:
+### 6.9.1 対応表
 
-```text
-SetVariable SetTextVariable SetMultipleVariables ResetVariable ClearAllVariables
-ParseValue EditTable EditTableV2 If ConditionGroup Foreach BreakLoop ContinueLoop
-GotoAction SendActivity InvokeAzureAgent InvokeFunctionTool InvokeMcpTool
-HttpRequestAction Question RequestExternalInput EndWorkflow EndConversation
-EndDialog CancelDialog CancelAllDialogs CreateConversation
-```
+「本アプリ」列は、この GUI が専用の編集フォームを持つかどうかを示す。未対応のものも読み込み・再出力では内容を保持する。
 
-**`SetValue` は Python 専用**である。C# には対応する kind がなく、`SetVariable` に `variable` を指定する形を使う。根拠は次の 4 点。
+| kind                           | Python | C#  | 本アプリ |
+| ------------------------------ | ------ | --- | -------- |
+| `SetValue`                     | ○      | —   | ○        |
+| `SetVariable`                  | ○      | ○   | ○        |
+| `SetTextVariable`              | ○      | ○   | —        |
+| `SetMultipleVariables`         | ○      | ○   | —        |
+| `ResetVariable`                | ○      | ○   | —        |
+| `ClearAllVariables`            | ○      | ○   | —        |
+| `ParseValue`                   | ○      | ○   | —        |
+| `EditTable`                    | ○      | ○   | —        |
+| `EditTableV2`                  | ○      | ○   | —        |
+| `If`                           | ○      | ○   | ○        |
+| `ConditionGroup`               | ○      | ○   | ○        |
+| `Foreach`                      | ○      | ○   | —        |
+| `BreakLoop`                    | ○      | ○   | —        |
+| `ContinueLoop`                 | ○      | ○   | —        |
+| `GotoAction`                   | ○      | ○   | ○        |
+| `SendActivity`                 | ○      | ○   | ○        |
+| `InvokeAzureAgent`             | ○      | ○   | ○        |
+| `InvokeFunctionTool`           | ○      | ○   | ○        |
+| `InvokeMcpTool`                | ○      | ○   | ○        |
+| `HttpRequestAction`            | ○      | ○   | ○        |
+| `Question`                     | ○      | ○   | ○        |
+| `RequestExternalInput`         | ○      | ○   | ○        |
+| `EndWorkflow`                  | ○      | ○   | ○        |
+| `EndConversation`              | ○      | ○   | —        |
+| `EndDialog`                    | ○      | ○   | —        |
+| `CancelDialog`                 | ○      | ○   | —        |
+| `CancelAllDialogs`             | ○      | ○   | —        |
+| `CreateConversation`           | ○      | ○   | ○        |
+| `AddConversationMessage`       | —      | ○   | —        |
+| `CopyConversationMessages`     | —      | ○   | —        |
+| `RetrieveConversationMessage`  | —      | ○   | —        |
+| `RetrieveConversationMessages` | —      | ○   | —        |
+
+C# にはこのほか Power Virtual Agents 由来の `BeginDialog` / `OAuthInput` / `RecognizeIntent` / `TransferConversation` / `EmitEvent` / `InvokeConnectorAction` など約 30 種が存在する。Python にはない。
+
+### 6.9.2 `SetValue` は Python 専用
+
+根拠は次の 4 点。
 
 1. Learn の Python ピボットに「Python **also** supports the `SetValue` action kind」という注記がある
 2. Learn の C# ピボットの変数管理アクション一覧に `SetValue` がない
 3. C# 形式のサンプル 7 件はすべて `SetVariable` のみを使う
 4. C# の `WorkflowActionVisitor.cs` に `SetValue` の出現が 0 件
 
-逆に C# にのみ存在するものとして、会話操作アクションのほか、Power Virtual Agents 由来の `BeginDialog` / `OAuthInput` / `RecognizeIntent` / `TransferConversation` などがある。
+C# では `SetVariable` に `variable` を指定する形を使う。
 
-なお C# のビジターには `If` / `EndWorkflow` / `SetValue` の `Visit` が無いが、`If` と `EndWorkflow` は C# サンプルで実際に使われている。これはオブジェクトモデル側で `If` → `ConditionGroup`、`EndWorkflow` → `EndDialog` のように正規化されるためと考えられる。**ビジターの一覧だけで対応可否を判断してはならない。**
+### 6.9.3 「実装に無い」ことの判定には注意が必要
 
-## 6.10 C# 形式と Python 形式は相互に変換できない
+C# のビジターには `If` / `EndWorkflow` / `SetValue` の `Visit` が無いが、`If` と `EndWorkflow` は C# サンプルで実際に使われている。オブジェクトモデル側で `If` → `ConditionGroup`、`EndWorkflow` → `EndDialog` のように正規化されるためと考えられる。
+
+**存在すること**の証明にはソース上の出現が使えるが、**存在しないこと**の証明には使えない。`SetValue` については上記のとおり 4 つの独立した根拠を揃えている。
+
+## 6.10 未実装アクションの仕様（実装ソースで確認）
+
+本アプリが専用フォームを持たないアクションのうち、代表的なものの実際のスキーマを記載する。**Learn の記載と Python 実装が食い違うものがある**ため、実装を優先して確認した。
+
+### `Foreach`
+
+コレクションを反復する。`actions` を持つコンテナ型であり、`If` や `ConditionGroup` と同じくネストした構造を取る。
+
+```yaml
+- kind: Foreach
+  id: process_items
+  source: =Local.items
+  itemName: item # 省略時は item
+  indexName: index # 省略時は index。キー自体が無ければ index 変数は作られない
+  actions:
+    - kind: SendActivity
+      activity:
+        text: =Concat("Processing ", Local.item)
+```
+
+現在の要素は `Local.<itemName>` に束縛される。必須項目は `source` と `actions`。
+
+### `BreakLoop` / `ContinueLoop`
+
+`Foreach` の内側で使う。固有のプロパティは持たない。
+
+```yaml
+- kind: BreakLoop
+  id: stop_here
+```
+
+### `EndConversation`
+
+会話を終了する。固有のプロパティは持たない。`EndWorkflow` / `EndDialog` / `CancelDialog` / `CancelAllDialogs` も同様に、制御を移す終端アクションである。
+
+### `SetMultipleVariables`
+
+**Learn の記載と実装が異なる。** Learn は `variables` というマップを示すが、Python の実装が読むのは `assignments` という配列である。
+
+```yaml
+# 実装が受け付ける形
+- kind: SetMultipleVariables
+  id: initialize
+  assignments:
+    - variable: Local.counter
+      value: 0
+    - variable: Local.status
+      value: pending
+```
+
+各要素は `variable` または `path` で対象を指定する。`variables` マップは読み取られない。
+
+### `ParseValue`
+
+**Learn の記載と実装が異なる。** Learn は `source` と `variable` を示すが、実装が読むのは `variable`（または `path`）、`value`、任意の `valueType` である。
+
+```yaml
+# 実装が受け付ける形
+- kind: ParseValue
+  id: parse_json
+  variable: Local.ParsedData
+  value: =System.LastMessage.Text
+  valueType: object # string / number / boolean / object / array
+```
+
+`valueType` を省略すると型変換は行われない。
+
+### 未実装アクションの扱い
+
+これらを含む YAML を読み込んだ場合、本アプリは次のように振る舞う。
+
+- キャンバスにはカードとして表示する
+- 解釈しなかったプロパティは `ActionModel.extra` に保持し、書き出し時にそのまま再出力する
+- 専用の編集フォームは無いため、ラベル以外は編集できない
+- 読み込み時に警告バナーで kind 名を通知する
+
+したがって、未対応のアクションを含むワークフローでも**内容が失われることはない**。
+
+## 6.11 C# 形式と Python 形式は相互に変換できない
 
 同じアクション語彙を持つ部分があるため一見似ているが、3 つの層で異なる。
 
-| 層 | Python | C# |
-| --- | --- | --- |
-| 文書構造 | `name` / `description` / `inputs` / `actions` | `kind: Workflow` / `trigger.actions` |
-| 変数名前空間 | `Local.*` `System.*` `Workflow.Inputs.*` `Workflow.Outputs.*` | `Local.*` `System.*` のみ |
-| アクション | `SetValue` あり | `SetValue` なし。会話操作など C# 専用が多数 |
+| 層           | Python                                                        | C#                                          |
+| ------------ | ------------------------------------------------------------- | ------------------------------------------- |
+| 文書構造     | `name` / `description` / `inputs` / `actions`                 | `kind: Workflow` / `trigger.actions`        |
+| 変数名前空間 | `Local.*` `System.*` `Workflow.Inputs.*` `Workflow.Outputs.*` | `Local.*` `System.*` のみ                   |
+| アクション   | `SetValue` あり                                               | `SetValue` なし。会話操作など C# 専用が多数 |
 
 特に名前空間が致命的で、C# は `Workflow.Inputs` / `Workflow.Outputs` を持たない。入力は `System.LastMessage`、出力は `SendActivity` で表現する。
 
@@ -375,7 +490,7 @@ EndDialog CancelDialog CancelAllDialogs CreateConversation
 
 スタイルの切り替えは自動変換できないものとして扱うべきである。
 
-## 6.11 YAML 記法上の注意
+## 6.12 YAML 記法上の注意
 
 ### 式の引用
 
