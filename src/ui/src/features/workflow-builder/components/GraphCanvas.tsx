@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BaseEdge,
@@ -61,11 +61,7 @@ type WorkflowEdgeData = {
   kind?: "sequential" | "branch-root" | "branch-continue" | "branch-end";
   from?: string;
   to?: string;
-  onAddAction?: (
-    sourceId: string,
-    kind: ActionKind,
-    mode?: "after" | "branch-append",
-  ) => void;
+  onRequestAdd?: (sourceId: string, anchor: { x: number; y: number }) => void;
 };
 
 type WorkflowEdge = Edge<WorkflowEdgeData>;
@@ -109,15 +105,11 @@ type FlowNodeData = {
   height?: number;
   collapsed?: boolean;
   actionKind?: string;
+  onAddToBranch?: (nodeId: string) => void;
+  onToggleCollapse?: (nodeId: string) => void;
+  onAddCondition?: (nodeId: string) => void;
+  onRemoveCondition?: (nodeId: string) => void;
 };
-
-function dispatchAddAction(sourceId: string, mode: "after" | "branch-append") {
-  window.dispatchEvent(
-    new CustomEvent("workflow:add-action-from-connector", {
-      detail: { sourceId, mode, x: 180, y: 180 },
-    }),
-  );
-}
 
 function FlowNodeCard({ id, data, selected }: NodeProps) {
   const nodeData = data as FlowNodeData;
@@ -146,7 +138,7 @@ function FlowNodeCard({ id, data, selected }: NodeProps) {
           title="Add action to this branch"
           onClick={(event) => {
             event.stopPropagation();
-            dispatchAddAction(id, "branch-append");
+            nodeData.onAddToBranch?.(id);
           }}
         >
           +
@@ -191,11 +183,7 @@ function FlowNodeCard({ id, data, selected }: NodeProps) {
             }
             onClick={(event) => {
               event.stopPropagation();
-              window.dispatchEvent(
-                new CustomEvent("workflow:toggle-branch-container", {
-                  detail: { nodeId: id },
-                }),
-              );
+              nodeData.onToggleCollapse?.(id);
             }}
           >
             {nodeData.collapsed ? "+" : "−"}
@@ -211,11 +199,7 @@ function FlowNodeCard({ id, data, selected }: NodeProps) {
               title="Remove this condition"
               onClick={(event) => {
                 event.stopPropagation();
-                window.dispatchEvent(
-                  new CustomEvent("workflow:remove-condition", {
-                    detail: { nodeId: id },
-                  }),
-                );
+                nodeData.onRemoveCondition?.(id);
               }}
             >
               ×
@@ -236,11 +220,7 @@ function FlowNodeCard({ id, data, selected }: NodeProps) {
               title="Add condition"
               onClick={(event) => {
                 event.stopPropagation();
-                window.dispatchEvent(
-                  new CustomEvent("workflow:add-condition", {
-                    detail: { nodeId: id },
-                  }),
-                );
+                nodeData.onAddCondition?.(id);
               }}
             >
               + Condition
@@ -298,7 +278,7 @@ function WorkflowConnectorEdge(props: EdgeProps<Edge<WorkflowEdgeData>>) {
         }}
       />
 
-      {isAddable && data?.onAddAction && data.from ? (
+      {isAddable && data?.onRequestAdd && data.from ? (
         <EdgeLabelRenderer>
           <div
             style={{
@@ -315,15 +295,10 @@ function WorkflowConnectorEdge(props: EdgeProps<Edge<WorkflowEdgeData>>) {
               onClick={(event) => {
                 event.stopPropagation();
                 event.preventDefault();
-                window.dispatchEvent(
-                  new CustomEvent("workflow:add-action-from-connector", {
-                    detail: {
-                      sourceId: data.from as string,
-                      x: labelX,
-                      y: labelY,
-                    },
-                  }),
-                );
+                data.onRequestAdd?.(data.from as string, {
+                  x: labelX,
+                  y: labelY,
+                });
               }}
             >
               +
@@ -337,7 +312,7 @@ function WorkflowConnectorEdge(props: EdgeProps<Edge<WorkflowEdgeData>>) {
 
 const edgeTypes = {
   workflowEdge: WorkflowConnectorEdge,
-} as const;
+};
 
 export function GraphCanvas({
   actions,
@@ -430,6 +405,54 @@ export function GraphCanvas({
     return { x: safeX, y: safeY };
   };
 
+  const handleAddToBranch = useCallback((id: string) => {
+    setConnectorPicker({
+      sourceId: id,
+      mode: "branch-append",
+      ...clampPickerPosition(180, 180),
+    });
+  }, []);
+
+  const handleRequestAddAfter = useCallback(
+    (id: string, anchor: { x: number; y: number }) => {
+      setConnectorPicker({
+        sourceId: id,
+        mode: "after",
+        ...clampPickerPosition(anchor.x, anchor.y),
+      });
+    },
+    [],
+  );
+
+  const handleToggleCollapse = useCallback(
+    (id: string) => {
+      const parsed = parseNodeId(id);
+
+      if (parsed.kind === "container") {
+        onToggleBranchCollapse?.(parsed.actionId);
+      }
+    },
+    [onToggleBranchCollapse],
+  );
+
+  const handleAddCondition = useCallback(
+    (id: string) => {
+      onAddCondition?.(id);
+    },
+    [onAddCondition],
+  );
+
+  const handleRemoveCondition = useCallback(
+    (id: string) => {
+      const parsed = parseNodeId(id);
+
+      if (parsed.kind === "branch" && parsed.ref.branch === "condition") {
+        onRemoveCondition?.(parsed.actionId, parsed.ref.index);
+      }
+    },
+    [onRemoveCondition],
+  );
+
   const [reactFlowNodes, setReactFlowNodes] = useState<Node<FlowNodeData>[]>(
     () =>
       nodes.map((node) => ({
@@ -445,6 +468,10 @@ export function GraphCanvas({
           height: node.height,
           collapsed: node.collapsed,
           actionKind: node.actionKind,
+          onAddToBranch: handleAddToBranch,
+          onToggleCollapse: handleToggleCollapse,
+          onAddCondition: handleAddCondition,
+          onRemoveCondition: handleRemoveCondition,
         },
         zIndex: node.branchKind === "container" ? 0 : 1,
         draggable: node.kind !== "branch" || node.branchKind === "container",
@@ -475,6 +502,10 @@ export function GraphCanvas({
           height: node.height,
           collapsed: node.collapsed,
           actionKind: node.actionKind,
+          onAddToBranch: handleAddToBranch,
+          onToggleCollapse: handleToggleCollapse,
+          onAddCondition: handleAddCondition,
+          onRemoveCondition: handleRemoveCondition,
         },
         zIndex: node.branchKind === "container" ? 0 : 1,
         draggable: node.kind !== "branch" || node.branchKind === "container",
@@ -487,62 +518,6 @@ export function GraphCanvas({
     );
   }, [nodes, selectedActionId]);
 
-  useEffect(() => {
-    const handleToggle = (event: Event) => {
-      const customEvent = event as CustomEvent<{ nodeId: string }>;
-      const id = customEvent.detail?.nodeId;
-      const parsed = id ? parseNodeId(id) : null;
-
-      if (parsed?.kind === "container") {
-        onToggleBranchCollapse?.(parsed.actionId);
-      }
-    };
-
-    window.addEventListener("workflow:toggle-branch-container", handleToggle);
-    return () => {
-      window.removeEventListener(
-        "workflow:toggle-branch-container",
-        handleToggle,
-      );
-    };
-  }, [onToggleBranchCollapse]);
-
-  useEffect(() => {
-    const handleAddCondition = (event: Event) => {
-      const customEvent = event as CustomEvent<{ nodeId: string }>;
-      const nodeId = customEvent.detail?.nodeId;
-
-      if (nodeId) {
-        onAddCondition?.(nodeId);
-      }
-    };
-
-    window.addEventListener("workflow:add-condition", handleAddCondition);
-    return () => {
-      window.removeEventListener("workflow:add-condition", handleAddCondition);
-    };
-  }, [onAddCondition]);
-
-  useEffect(() => {
-    const handleRemoveCondition = (event: Event) => {
-      const customEvent = event as CustomEvent<{ nodeId: string }>;
-      const id = customEvent.detail?.nodeId;
-      const parsed = id ? parseNodeId(id) : null;
-
-      if (parsed?.kind === "branch" && parsed.ref.branch === "condition") {
-        onRemoveCondition?.(parsed.actionId, parsed.ref.index);
-      }
-    };
-
-    window.addEventListener("workflow:remove-condition", handleRemoveCondition);
-    return () => {
-      window.removeEventListener(
-        "workflow:remove-condition",
-        handleRemoveCondition,
-      );
-    };
-  }, [onRemoveCondition]);
-
   const reactFlowEdges = useMemo<WorkflowEdge[]>(
     () =>
       connections.map((connection) => ({
@@ -554,45 +529,12 @@ export function GraphCanvas({
           kind: connection.kind ?? "sequential",
           from: connection.from,
           to: connection.to,
-          onAddAction: onAddActionFromConnector,
+          onRequestAdd: handleRequestAddAfter,
         },
         animated: false,
       })),
-    [connections, onAddActionFromConnector],
+    [connections, handleRequestAddAfter],
   );
-
-  useEffect(() => {
-    const handleConnectorAdd = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        sourceId: string;
-        mode?: "after" | "branch-append";
-        x: number;
-        y: number;
-      }>;
-      const { sourceId, mode, x, y } = customEvent.detail ?? {};
-
-      if (!sourceId) {
-        return;
-      }
-
-      setConnectorPicker({
-        sourceId,
-        mode: mode ?? "after",
-        ...clampPickerPosition(x ?? 180, y ?? 180),
-      });
-    };
-
-    window.addEventListener(
-      "workflow:add-action-from-connector",
-      handleConnectorAdd,
-    );
-    return () => {
-      window.removeEventListener(
-        "workflow:add-action-from-connector",
-        handleConnectorAdd,
-      );
-    };
-  }, []);
 
   useEffect(() => {
     if (!connectorPicker) {
