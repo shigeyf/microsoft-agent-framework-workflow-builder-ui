@@ -17,7 +17,7 @@ export type ActionKind =
   | "CreateConversation"
   | "InvokeFunctionTool"
   | "InvokeMcpTool"
-  | "InvokeHttpRequest";
+  | "HttpRequestAction";
 
 export type ConditionBranch = {
   id?: string;
@@ -40,6 +40,8 @@ export type AgentInput = {
 
 export type AgentOutput = {
   responseObject?: string;
+  /** Tool actions store their payload here instead of responseObject. */
+  result?: string;
   messages?: string;
   autoSend?: boolean;
 };
@@ -72,6 +74,21 @@ export type ActionModel = {
   conversationId?: string;
   input?: AgentInput;
   output?: AgentOutput;
+  functionName?: string;
+  toolName?: string;
+  serverUrl?: string;
+  serverLabel?: string;
+  /** Literal `true`/`false` or an expression, so it stays a string. */
+  requireApproval?: string;
+  url?: string;
+  method?: string;
+  response?: string;
+  responseHeaders?: string;
+  arguments?: Record<string, string>;
+  headers?: Record<string, string>;
+  queryParameters?: Record<string, string>;
+  /** Properties the builder has no editor for, kept so nothing is lost on export. */
+  extra?: Record<string, unknown>;
 };
 
 export type WorkflowConnection = {
@@ -93,4 +110,7 @@ export const actionKindOptions: ActionKind[] = [
   "GotoAction",
   "CreateConversation",
   "EndWorkflow",
+  "InvokeFunctionTool",
+  "InvokeMcpTool",
+  "HttpRequestAction",
 ];

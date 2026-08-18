@@ -35,6 +35,46 @@ const INPUT_TYPES = new Set<WorkflowInputType>([
 
 type YamlRecord = Record<string, unknown>;
 
+const SCALAR_KEYS = [
+  "functionName",
+  "toolName",
+  "serverUrl",
+  "serverLabel",
+  "requireApproval",
+  "url",
+  "method",
+  "response",
+  "responseHeaders",
+] as const;
+
+const MAP_KEYS = ["arguments", "headers", "queryParameters"] as const;
+
+/** Everything the parser understands; the rest is carried in `extra`. */
+const HANDLED_KEYS = new Set<string>([
+  "kind",
+  "id",
+  "displayName",
+  "path",
+  "variable",
+  "value",
+  "condition",
+  "conversationId",
+  "actionId",
+  "activity",
+  "question",
+  "prompt",
+  "default",
+  "agent",
+  "input",
+  "output",
+  "then",
+  "else",
+  "elseActions",
+  "conditions",
+  ...SCALAR_KEYS,
+  ...MAP_KEYS,
+]);
+
 function isRecord(value: unknown): value is YamlRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -178,6 +218,26 @@ function parseAction(
     action.output = output;
   }
 
+  for (const key of SCALAR_KEYS) {
+    if (raw[key] !== undefined) {
+      action[key] = asText(raw[key]);
+    }
+  }
+
+  for (const key of MAP_KEYS) {
+    const map = parseStringMap(raw[key]);
+    if (map) {
+      action[key] = map;
+    }
+  }
+
+  const extra = Object.fromEntries(
+    Object.entries(raw).filter(([key]) => !HANDLED_KEYS.has(key)),
+  );
+  if (Object.keys(extra).length > 0) {
+    action.extra = extra;
+  }
+
   if (raw.then !== undefined) {
     action.then = parseActionList(raw.then, ids, unsupported);
   }
@@ -204,6 +264,16 @@ function parseAction(
   return action;
 }
 
+function parseStringMap(raw: unknown): Record<string, string> | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+
+  return Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, asText(value)]),
+  );
+}
+
 function parseAgentInput(raw: unknown): AgentInput | null {
   if (!isRecord(raw)) {
     return null;
@@ -220,7 +290,6 @@ function parseAgentInput(raw: unknown): AgentInput | null {
       Object.entries(raw.arguments).map(([key, value]) => [key, asText(value)]),
     );
   }
-
   if (raw.externalLoop !== undefined) {
     input.externalLoop = { when: nestedText(raw.externalLoop, "when") };
   }
@@ -237,6 +306,10 @@ function parseAgentOutput(raw: unknown): AgentOutput | null {
 
   if (raw.responseObject !== undefined) {
     output.responseObject = asText(raw.responseObject);
+  }
+
+  if (raw.result !== undefined) {
+    output.result = asText(raw.result);
   }
 
   if (raw.messages !== undefined) {

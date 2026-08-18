@@ -3,6 +3,10 @@ import { parse } from "yaml";
 import conditionalWorkflow from "./__fixtures__/conditional_workflow.yaml?raw";
 import customerSupport from "./__fixtures__/customer_support.yaml?raw";
 import humanInLoop from "./__fixtures__/human_in_loop.yaml?raw";
+import invokeFunctionTool from "./__fixtures__/invoke_function_tool.yaml?raw";
+import invokeHttpRequest from "./__fixtures__/invoke_http_request.yaml?raw";
+import invokeMcpTool from "./__fixtures__/invoke_mcp_tool.yaml?raw";
+import marketing from "./__fixtures__/marketing.yaml?raw";
 import simpleWorkflow from "./__fixtures__/simple_workflow.yaml?raw";
 import studentTeacher from "./__fixtures__/student_teacher.yaml?raw";
 import { parseWorkflowYaml } from "./parseYaml";
@@ -19,6 +23,10 @@ const SAMPLES = {
   human_in_loop: humanInLoop,
   customer_support: customerSupport,
   student_teacher: studentTeacher,
+  invoke_function_tool: invokeFunctionTool,
+  invoke_mcp_tool: invokeMcpTool,
+  invoke_http_request: invokeHttpRequest,
+  marketing: marketing,
 };
 
 const SAMPLE_NAMES = Object.keys(SAMPLES) as (keyof typeof SAMPLES)[];

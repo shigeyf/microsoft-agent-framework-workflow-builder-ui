@@ -4,6 +4,20 @@ import type {
   AgentInput,
   AgentOutput,
 } from "../../types";
+import { KeyValueRows } from "./KeyValueRows";
+
+/** Action fields the tool and HTTP editors render as a plain text input. */
+type TextFieldKey =
+  | "functionName"
+  | "toolName"
+  | "serverUrl"
+  | "serverLabel"
+  | "requireApproval"
+  | "url"
+  | "method"
+  | "response"
+  | "responseHeaders"
+  | "conversationId";
 
 type ActionFieldRendererProps = {
   action: ActionModel;
@@ -249,21 +263,11 @@ export function ActionFieldRenderer({
   if (action.kind === "InvokeAzureAgent") {
     const input = action.input ?? {};
     const output = action.output ?? {};
-    const args = Object.entries(input.arguments ?? {});
 
     const patchInput = (patch: Partial<AgentInput>) =>
       onUpdateAction(action.id, "input", { ...input, ...patch });
     const patchOutput = (patch: Partial<AgentOutput>) =>
       onUpdateAction(action.id, "output", { ...output, ...patch });
-    const renameArgument = (index: number, key: string) =>
-      patchInput({
-        arguments: Object.fromEntries(
-          args.map(([name, value], current) => [
-            current === index ? key : name,
-            value,
-          ]),
-        ),
-      });
 
     return (
       <>
@@ -304,54 +308,12 @@ export function ActionFieldRenderer({
           />
         </label>
 
-        <div className="inspector-actions-row">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() =>
-              patchInput({
-                arguments: { ...(input.arguments ?? {}), "": "" },
-              })
-            }
-          >
-            + Add argument
-          </button>
-        </div>
-
-        {args.map(([key, value], index) => (
-          <div key={index} className="argument-row">
-            <input
-              aria-label={`Argument ${index + 1} name`}
-              placeholder="name"
-              value={key}
-              onChange={(event) => renameArgument(index, event.target.value)}
-            />
-            <input
-              aria-label={`Argument ${index + 1} value`}
-              placeholder="=Local.value"
-              value={value}
-              onChange={(event) =>
-                patchInput({
-                  arguments: { ...input.arguments, [key]: event.target.value },
-                })
-              }
-            />
-            <button
-              type="button"
-              className="danger-button"
-              aria-label={`Remove argument ${index + 1}`}
-              onClick={() =>
-                patchInput({
-                  arguments: Object.fromEntries(
-                    args.filter((_, current) => current !== index),
-                  ),
-                })
-              }
-            >
-              ×
-            </button>
-          </div>
-        ))}
+        <KeyValueRows
+          label="argument"
+          entries={input.arguments}
+          placeholder="=Local.value"
+          onChange={(next) => patchInput({ arguments: next })}
+        />
 
         <label>
           <span>Output response object</span>
@@ -425,6 +387,119 @@ export function ActionFieldRenderer({
             }}
           />
         </label>
+      </>
+    );
+  }
+
+  if (
+    action.kind === "InvokeFunctionTool" ||
+    action.kind === "InvokeMcpTool" ||
+    action.kind === "HttpRequestAction"
+  ) {
+    const isHttp = action.kind === "HttpRequestAction";
+    const output = action.output ?? {};
+    const patchOutput = (patch: Partial<AgentOutput>) =>
+      onUpdateAction(action.id, "output", { ...output, ...patch });
+
+    const text = (key: TextFieldKey, label: string) => (
+      <label>
+        <span>{label}</span>
+        <input
+          value={action[key] ?? ""}
+          onChange={(event) =>
+            onUpdateAction(action.id, key, event.target.value)
+          }
+        />
+      </label>
+    );
+
+    return (
+      <>
+        {action.kind === "InvokeFunctionTool"
+          ? text("functionName", "Function name")
+          : null}
+
+        {action.kind === "InvokeMcpTool" ? (
+          <>
+            {text("serverUrl", "Server URL")}
+            {text("serverLabel", "Server label")}
+            {text("toolName", "Tool name")}
+          </>
+        ) : null}
+
+        {isHttp ? (
+          <>
+            {text("method", "Method")}
+            {text("url", "URL")}
+          </>
+        ) : null}
+
+        {text("conversationId", "Conversation ID")}
+        {isHttp ? null : text("requireApproval", "Require approval")}
+
+        {isHttp ? null : (
+          <KeyValueRows
+            label="argument"
+            entries={action.arguments}
+            placeholder="=Local.value"
+            onChange={(next) => onUpdateAction(action.id, "arguments", next)}
+          />
+        )}
+
+        {action.kind === "InvokeFunctionTool" ? null : (
+          <KeyValueRows
+            label="header"
+            entries={action.headers}
+            placeholder="value"
+            onChange={(next) => onUpdateAction(action.id, "headers", next)}
+          />
+        )}
+
+        {isHttp ? (
+          <>
+            <KeyValueRows
+              label="query parameter"
+              entries={action.queryParameters}
+              placeholder="value"
+              onChange={(next) =>
+                onUpdateAction(action.id, "queryParameters", next)
+              }
+            />
+            {text("response", "Response variable")}
+            {text("responseHeaders", "Response headers variable")}
+          </>
+        ) : (
+          <>
+            <label>
+              <span>Output result</span>
+              <input
+                value={output.result ?? ""}
+                onChange={(event) =>
+                  patchOutput({ result: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              <span>Output messages</span>
+              <input
+                value={output.messages ?? ""}
+                onChange={(event) =>
+                  patchOutput({ messages: event.target.value })
+                }
+              />
+            </label>
+            <label className="checkbox-field">
+              <input
+                type="checkbox"
+                checked={output.autoSend ?? false}
+                onChange={(event) =>
+                  patchOutput({ autoSend: event.target.checked })
+                }
+              />
+              <span>Auto send result</span>
+            </label>
+          </>
+        )}
       </>
     );
   }

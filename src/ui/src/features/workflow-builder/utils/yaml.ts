@@ -1,3 +1,4 @@
+import { stringify } from "yaml";
 import type {
   ActionModel,
   AgentInput,
@@ -115,11 +116,59 @@ function renderAgentOutput(output: AgentOutput, indent: string): string[] {
     );
   }
 
+  if (output.result) {
+    lines.push(...field(`${indent}  `, "result", output.result));
+  }
+
   if (output.messages) {
     lines.push(...field(`${indent}  `, "messages", output.messages));
   }
 
   return lines.length > 0 ? [`${indent}output:`, ...lines] : [];
+}
+
+function renderStringMap(
+  map: Record<string, string> | undefined,
+  key: string,
+  indent: string,
+): string[] {
+  const entries = Object.entries(map ?? {});
+
+  if (entries.length === 0) {
+    return [];
+  }
+
+  return [
+    `${indent}${key}:`,
+    ...entries.flatMap(([name, value]) => field(`${indent}  `, name, value)),
+  ];
+}
+
+/** Re-emits properties the builder does not model, so imports survive a round trip. */
+function renderExtra(
+  extra: Record<string, unknown> | undefined,
+  indent: string,
+): string[] {
+  if (!extra || Object.keys(extra).length === 0) {
+    return [];
+  }
+
+  return stringify(extra)
+    .trimEnd()
+    .split("\n")
+    .map((line) => `${indent}${line}`);
+}
+
+function renderConversationId(action: ActionModel, indent: string): string[] {
+  return action.conversationId
+    ? field(`${indent}  `, "conversationId", action.conversationId)
+    : [];
+}
+
+function renderRequireApproval(action: ActionModel, indent: string): string[] {
+  return action.requireApproval
+    ? field(`${indent}  `, "requireApproval", action.requireApproval)
+    : [];
 }
 
 function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
@@ -247,9 +296,74 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
         );
         break;
       }
+      case "InvokeFunctionTool": {
+        lines.push(
+          ...field(`${indent}  `, "functionName", action.functionName ?? ""),
+        );
+        lines.push(...renderConversationId(action, indent));
+        lines.push(...renderRequireApproval(action, indent));
+        lines.push(
+          ...renderStringMap(action.arguments, "arguments", `${indent}  `),
+        );
+        if (action.output) {
+          lines.push(...renderAgentOutput(action.output, `${indent}  `));
+        }
+        break;
+      }
+      case "InvokeMcpTool": {
+        lines.push(
+          ...field(`${indent}  `, "serverUrl", action.serverUrl ?? ""),
+        );
+        if (action.serverLabel) {
+          lines.push(
+            ...field(`${indent}  `, "serverLabel", action.serverLabel),
+          );
+        }
+        lines.push(...field(`${indent}  `, "toolName", action.toolName ?? ""));
+        lines.push(...renderConversationId(action, indent));
+        lines.push(...renderRequireApproval(action, indent));
+        lines.push(
+          ...renderStringMap(action.arguments, "arguments", `${indent}  `),
+        );
+        lines.push(
+          ...renderStringMap(action.headers, "headers", `${indent}  `),
+        );
+        if (action.output) {
+          lines.push(...renderAgentOutput(action.output, `${indent}  `));
+        }
+        break;
+      }
+      case "HttpRequestAction": {
+        lines.push(...renderConversationId(action, indent));
+        if (action.method) {
+          lines.push(...field(`${indent}  `, "method", action.method));
+        }
+        lines.push(...field(`${indent}  `, "url", action.url ?? ""));
+        lines.push(
+          ...renderStringMap(action.headers, "headers", `${indent}  `),
+        );
+        lines.push(
+          ...renderStringMap(
+            action.queryParameters,
+            "queryParameters",
+            `${indent}  `,
+          ),
+        );
+        if (action.response) {
+          lines.push(...field(`${indent}  `, "response", action.response));
+        }
+        if (action.responseHeaders) {
+          lines.push(
+            ...field(`${indent}  `, "responseHeaders", action.responseHeaders),
+          );
+        }
+        break;
+      }
       default:
         break;
     }
+
+    lines.push(...renderExtra(action.extra, `${indent}  `));
 
     return lines;
   });

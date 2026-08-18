@@ -123,6 +123,42 @@ export function createAction(kind: ActionKind): ActionModel {
         x: 40,
         y: 80,
       };
+    case "InvokeFunctionTool":
+      return {
+        id,
+        kind,
+        displayName: "Invoke function tool",
+        x: 40,
+        y: 80,
+        functionName: "get_weather",
+        arguments: {},
+        output: { result: "Local.result" },
+      };
+    case "InvokeMcpTool":
+      return {
+        id,
+        kind,
+        displayName: "Invoke MCP tool",
+        x: 40,
+        y: 80,
+        serverUrl: "https://learn.microsoft.com/api/mcp",
+        serverLabel: "microsoft_docs",
+        toolName: "microsoft_docs_search",
+        arguments: {},
+        output: { result: "Local.result" },
+      };
+    case "HttpRequestAction":
+      return {
+        id,
+        kind,
+        displayName: "HTTP request",
+        x: 40,
+        y: 80,
+        method: "GET",
+        url: "https://api.github.com/repos/microsoft/agent-framework",
+        headers: {},
+        response: "Local.response",
+      };
     default:
       return {
         id,
