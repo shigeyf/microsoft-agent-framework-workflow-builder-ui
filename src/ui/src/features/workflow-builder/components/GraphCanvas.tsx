@@ -104,7 +104,7 @@ type FlowNodeData = {
   kind: "input" | "process" | "output" | "branch";
   label: string;
   meta?: string;
-  branchKind?: "if" | "then" | "else" | "condition" | "adder";
+  branchKind?: "container" | "then" | "else" | "condition" | "adder";
   width?: number;
   height?: number;
   collapsed?: boolean;
@@ -122,7 +122,7 @@ function dispatchAddAction(sourceId: string, mode: "after" | "branch-append") {
 function FlowNodeCard({ id, data, selected }: NodeProps) {
   const nodeData = data as FlowNodeData;
   const isBranchNode = nodeData.kind === "branch";
-  const isIfContainer = nodeData.branchKind === "if";
+  const isIfContainer = nodeData.branchKind === "container";
   const isAdder = nodeData.branchKind === "adder";
   const isBranchSlot =
     nodeData.branchKind === "then" ||
@@ -446,8 +446,8 @@ export function GraphCanvas({
           collapsed: node.collapsed,
           actionKind: node.actionKind,
         },
-        zIndex: node.branchKind === "if" ? 0 : 1,
-        draggable: node.kind !== "branch" || node.branchKind === "if",
+        zIndex: node.branchKind === "container" ? 0 : 1,
+        draggable: node.kind !== "branch" || node.branchKind === "container",
         selectable: node.kind !== "branch",
         connectable: node.kind !== "branch",
         selected: node.kind === "process" && node.id === selectedActionId,
@@ -476,8 +476,8 @@ export function GraphCanvas({
           collapsed: node.collapsed,
           actionKind: node.actionKind,
         },
-        zIndex: node.branchKind === "if" ? 0 : 1,
-        draggable: node.kind !== "branch" || node.branchKind === "if",
+        zIndex: node.branchKind === "container" ? 0 : 1,
+        draggable: node.kind !== "branch" || node.branchKind === "container",
         selectable: node.kind !== "branch",
         connectable: node.kind !== "branch",
         selected: node.kind === "process" && node.id === selectedActionId,

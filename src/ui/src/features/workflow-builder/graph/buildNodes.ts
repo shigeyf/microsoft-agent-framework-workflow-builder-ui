@@ -1,0 +1,225 @@
+import type { ActionKind, ActionModel } from "../types";
+import { flattenActions } from "../domain/actionTree";
+import { branchesOf, isBranchAction } from "../domain/branches";
+import { OUTPUT_NODE_ID, START_NODE_ID, nodeId } from "../domain/nodeIds";
+import { LAYOUT } from "./layout";
+
+export type WorkflowGraphNode = {
+  id: string;
+  kind: "input" | "process" | "output" | "branch";
+  displayName: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  meta?: string;
+  branchKind?: "container" | "then" | "else" | "condition" | "adder";
+  collapsed?: boolean;
+  actionKind?: ActionKind;
+};
+
+export type NodePositions = { start: Position; output: Position };
+
+type Position = { x: number; y: number };
+type Box = Position & { width: number; height: number };
+
+/** Branch labels stack vertically to the right of the branch action. */
+export function branchLabelPosition(
+  action: ActionModel,
+  rowIndex: number,
+): Position {
+  return {
+    x: (action.x ?? 0) + LAYOUT.branchLabelOffsetX,
+    y:
+      (action.y ?? 0) +
+      rowIndex * (LAYOUT.branchLabel.height + LAYOUT.branchRowGap),
+  };
+}
+
+/** Where the next action of a branch should be placed. */
+export function branchSlotPosition(
+  action: ActionModel,
+  rowIndex: number,
+  slotIndex: number,
+): Position {
+  const label = branchLabelPosition(action, rowIndex);
+
+  return {
+    x:
+      label.x +
+      LAYOUT.branchLabel.width +
+      LAYOUT.branchGapX +
+      slotIndex * (LAYOUT.node.width + LAYOUT.branchGapX),
+    y: label.y - (LAYOUT.node.height - LAYOUT.branchLabel.height) / 2,
+  };
+}
+
+function containerLabelOf(action: ActionModel): string {
+  return action.kind === "If" ? "IF" : "CONDITIONGROUP";
+}
+
+function collapsedContainer(action: ActionModel): WorkflowGraphNode {
+  const { padding, headerHeight } = LAYOUT.container;
+
+  return {
+    id: nodeId.container(action.id),
+    kind: "branch",
+    displayName: containerLabelOf(action),
+    x: (action.x ?? 0) - padding,
+    y: (action.y ?? 0) - padding - headerHeight,
+    width: LAYOUT.node.width + padding * 2,
+    height: LAYOUT.node.height + padding * 2 + headerHeight,
+    branchKind: "container",
+    collapsed: true,
+  };
+}
+
+function boundingContainer(
+  action: ActionModel,
+  boxes: Box[],
+): WorkflowGraphNode {
+  const { padding, headerHeight } = LAYOUT.container;
+  const minX = Math.min(...boxes.map((box) => box.x));
+  const minY = Math.min(...boxes.map((box) => box.y));
+  const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+  const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+
+  return {
+    id: nodeId.container(action.id),
+    kind: "branch",
+    displayName: containerLabelOf(action),
+    x: minX - padding,
+    y: minY - padding - headerHeight,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2 + headerHeight,
+    branchKind: "container",
+    collapsed: false,
+  };
+}
+
+/** Container box, branch labels and trailing adders for every branch action. */
+function buildBranchNodes(
+  actions: ActionModel[],
+  collapsed: string[],
+): WorkflowGraphNode[] {
+  return actions.flatMap((action) => {
+    if (!isBranchAction(action)) {
+      return [];
+    }
+
+    if (collapsed.includes(action.id)) {
+      return [collapsedContainer(action)];
+    }
+
+    const nodes: WorkflowGraphNode[] = [];
+    const boxes: Box[] = [
+      { x: action.x ?? 0, y: action.y ?? 0, ...LAYOUT.node },
+    ];
+
+    branchesOf(action).forEach((branch, rowIndex) => {
+      const label = branchLabelPosition(action, rowIndex);
+
+      nodes.push({
+        id: nodeId.branch(action.id, branch.ref),
+        kind: "branch",
+        displayName: branch.label,
+        ...label,
+        ...LAYOUT.branchLabel,
+        branchKind: branch.ref.branch,
+      });
+      boxes.push({ ...label, ...LAYOUT.branchLabel });
+
+      flattenActions(branch.actions, collapsed).forEach((child) => {
+        boxes.push({ x: child.x ?? 0, y: child.y ?? 0, ...LAYOUT.node });
+      });
+
+      const lastAction = branch.actions.at(-1);
+      const anchor = lastAction
+        ? {
+            x: (lastAction.x ?? 0) + LAYOUT.node.width,
+            y: (lastAction.y ?? 0) + LAYOUT.node.height / 2,
+          }
+        : {
+            x: label.x + LAYOUT.branchLabel.width,
+            y: label.y + LAYOUT.branchLabel.height / 2,
+          };
+
+      const adder: WorkflowGraphNode = {
+        id: nodeId.branchAdder(action.id, branch.ref),
+        kind: "branch",
+        displayName: "+",
+        x: anchor.x + LAYOUT.branchGapX,
+        y: anchor.y - LAYOUT.adderSize / 2,
+        width: LAYOUT.adderSize,
+        height: LAYOUT.adderSize,
+        branchKind: "adder",
+      };
+
+      nodes.push(adder);
+      boxes.push({
+        x: adder.x,
+        y: adder.y,
+        width: LAYOUT.adderSize,
+        height: LAYOUT.adderSize,
+      });
+    });
+
+    return [
+      boundingContainer(action, boxes),
+      ...nodes,
+      ...buildBranchNodes(
+        branchesOf(action).flatMap((branch) => branch.actions),
+        collapsed,
+      ),
+    ];
+  });
+}
+
+export function buildNodes(
+  actions: ActionModel[],
+  collapsed: string[],
+  positions: NodePositions,
+): WorkflowGraphNode[] {
+  const startNode: WorkflowGraphNode = {
+    id: START_NODE_ID,
+    kind: "input",
+    displayName: "Start",
+    ...positions.start,
+    meta: "trigger",
+  };
+
+  const outputNode: WorkflowGraphNode = {
+    id: OUTPUT_NODE_ID,
+    kind: "output",
+    displayName: "Output",
+    ...positions.output,
+    meta: "result",
+  };
+
+  const processNodes = flattenActions(
+    actions,
+    collapsed,
+  ).map<WorkflowGraphNode>((action, index) => ({
+    id: action.id,
+    kind: "process",
+    displayName: action.displayName,
+    x: action.x ?? LAYOUT.newActionGrid.originX,
+    y: action.y ?? LAYOUT.newActionGrid.originY + index * LAYOUT.node.height,
+    ...LAYOUT.node,
+    actionKind: action.kind,
+    collapsed: collapsed.includes(action.id),
+    meta:
+      action.variable ??
+      action.path ??
+      action.activityText ??
+      action.questionText ??
+      action.kind,
+  }));
+
+  return [
+    startNode,
+    ...processNodes,
+    ...buildBranchNodes(actions, collapsed),
+    outputNode,
+  ];
+}
