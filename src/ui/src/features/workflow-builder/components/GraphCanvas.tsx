@@ -10,7 +10,6 @@ import {
   ReactFlow,
   applyNodeChanges,
   getSmoothStepPath,
-  type Connection,
   type Edge,
   type EdgeProps,
   type Node,
@@ -19,6 +18,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { ActionKind, ActionModel, WorkflowConnection } from "../types";
+import { OUTPUT_NODE_ID, START_NODE_ID, parseNodeId } from "../domain/nodeIds";
 import type { WorkflowGraphNode } from "../WorkflowBuilder";
 
 function findActionInTree(
@@ -83,7 +83,6 @@ type GraphCanvasProps = {
     value: ActionModel[K],
   ) => void;
   onUpdateNodePosition: (id: string, x: number, y: number) => void;
-  onCreateConnection: (from: string, to: string) => void;
   onAddActionFromConnector?: (
     sourceId: string,
     kind: ActionKind,
@@ -349,7 +348,6 @@ export function GraphCanvas({
   onSelectAction,
   onUpdateAction,
   onUpdateNodePosition,
-  onCreateConnection,
   onAddActionFromConnector,
   onMoveBranchContainer,
   onToggleBranchCollapse,
@@ -492,10 +490,11 @@ export function GraphCanvas({
   useEffect(() => {
     const handleToggle = (event: Event) => {
       const customEvent = event as CustomEvent<{ nodeId: string }>;
-      const nodeId = customEvent.detail?.nodeId;
+      const id = customEvent.detail?.nodeId;
+      const parsed = id ? parseNodeId(id) : null;
 
-      if (nodeId?.endsWith(":box")) {
-        onToggleBranchCollapse?.(nodeId.slice(0, -":box".length));
+      if (parsed?.kind === "container") {
+        onToggleBranchCollapse?.(parsed.actionId);
       }
     };
 
@@ -527,12 +526,11 @@ export function GraphCanvas({
   useEffect(() => {
     const handleRemoveCondition = (event: Event) => {
       const customEvent = event as CustomEvent<{ nodeId: string }>;
-      const match = customEvent.detail?.nodeId?.match(
-        /^(.*):condition-(\d+)-box$/,
-      );
+      const id = customEvent.detail?.nodeId;
+      const parsed = id ? parseNodeId(id) : null;
 
-      if (match) {
-        onRemoveCondition?.(match[1], Number(match[2]));
+      if (parsed?.kind === "branch" && parsed.ref.branch === "condition") {
+        onRemoveCondition?.(parsed.actionId, parsed.ref.index);
       }
     };
 
@@ -647,35 +645,22 @@ export function GraphCanvas({
     );
 
     for (const change of positionChanges) {
-      if (change.id.endsWith(":box")) {
+      const parsed = parseNodeId(change.id);
+
+      if (parsed.kind === "container") {
         continue;
       }
 
-      const matchingAction = findActionInTree(actions, change.id);
+      if (parsed.kind === "start" || parsed.kind === "output") {
+        onUpdateNodePosition(change.id, change.position.x, change.position.y);
+        continue;
+      }
 
-      if (matchingAction) {
+      if (findActionInTree(actions, change.id)) {
         onUpdateAction(change.id, "x", change.position.x);
         onUpdateAction(change.id, "y", change.position.y);
-        continue;
-      }
-
-      if (change.id === "workflow:start" || change.id === "workflow:output") {
-        onUpdateNodePosition(change.id, change.position.x, change.position.y);
-        continue;
-      }
-
-      if (change.id.startsWith("input:")) {
-        onUpdateNodePosition(change.id, change.position.x, change.position.y);
       }
     }
-  };
-
-  const handleConnect = (connection: Connection) => {
-    if (!connection.source || !connection.target) {
-      return;
-    }
-
-    onCreateConnection(connection.source, connection.target);
   };
 
   return (
@@ -692,7 +677,7 @@ export function GraphCanvas({
           onNodeDragStart={(_, node) => {
             isDraggingRef.current = true;
 
-            if (node.id.endsWith(":box")) {
+            if (parseNodeId(node.id).kind === "container") {
               containerDragStartRef.current = {
                 id: node.id,
                 x: node.position.x,
@@ -705,21 +690,17 @@ export function GraphCanvas({
 
             const start = containerDragStartRef.current;
             containerDragStartRef.current = null;
+            const parsed = parseNodeId(node.id);
 
-            if (start && start.id === node.id) {
+            if (start?.id === node.id && parsed.kind === "container") {
               const deltaX = node.position.x - start.x;
               const deltaY = node.position.y - start.y;
 
               if (deltaX !== 0 || deltaY !== 0) {
-                onMoveBranchContainer?.(
-                  node.id.slice(0, -":box".length),
-                  deltaX,
-                  deltaY,
-                );
+                onMoveBranchContainer?.(parsed.actionId, deltaX, deltaY);
               }
             }
           }}
-          onConnect={handleConnect}
           onPaneClick={() => setConnectorPicker(null)}
           onMoveStart={() => setConnectorPicker(null)}
           onNodeClick={(event, node) => {
@@ -735,7 +716,7 @@ export function GraphCanvas({
               y: bounds ? event.clientY - bounds.top : 0,
             };
 
-            if (node.id === "workflow:start" || node.id === "workflow:output") {
+            if (node.id === START_NODE_ID || node.id === OUTPUT_NODE_ID) {
               onSelectWorkflow(anchor);
               return;
             }

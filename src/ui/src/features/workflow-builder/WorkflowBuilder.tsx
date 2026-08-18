@@ -3,12 +3,29 @@ import { GraphCanvas } from "./components/GraphCanvas";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { WorkflowHeader } from "./components/WorkflowHeader";
 import { YamlPreview } from "./components/YamlPreview";
+import { createAction, defaultActions, defaultInputs } from "./data";
 import {
-  createAction,
-  defaultActions,
-  defaultConnections,
-  defaultInputs,
-} from "./data";
+  findAction,
+  flattenActions,
+  insertAfter,
+  insertIntoBranch,
+  removeAction as removeActionFromTree,
+  translateSubtree,
+  updateAction as updateActionInTree,
+} from "./domain/actionTree";
+import {
+  branchActionsOf,
+  branchRowIndex,
+  branchesOf,
+  isBranchAction,
+  type BranchDef,
+} from "./domain/branches";
+import {
+  START_NODE_ID,
+  nodeId,
+  parseNodeId,
+  type BranchRef,
+} from "./domain/nodeIds";
 import type {
   ActionKind,
   ActionModel,
@@ -40,33 +57,9 @@ const BRANCH_GAP_X = 60;
 const CONTAINER_PADDING = 28;
 const CONTAINER_HEADER = 30;
 
-function branchChildrenOf(action: ActionModel): ActionModel[] {
-  return [
-    ...(action.then ?? []),
-    ...(action.else ?? []),
-    ...(action.conditions?.flatMap((condition) => condition.actions) ?? []),
-  ];
-}
-
-function isBranchAction(action: ActionModel): boolean {
-  return action.kind === "If" || action.kind === "ConditionGroup";
-}
-
 /** External graph endpoint: branch actions connect through their container box. */
 function externalIdOf(action: ActionModel): string {
-  return isBranchAction(action) ? `${action.id}:box` : action.id;
-}
-
-function collectVisibleActions(
-  actions: ActionModel[],
-  collapsed: string[] = [],
-): ActionModel[] {
-  return actions.flatMap((action) => [
-    action,
-    ...(collapsed.includes(action.id)
-      ? []
-      : collectVisibleActions(branchChildrenOf(action), collapsed)),
-  ]);
+  return isBranchAction(action) ? nodeId.container(action.id) : action.id;
 }
 
 function branchLabelPosition(
@@ -84,51 +77,20 @@ function collectBranchContainers(
   collapsed: string[] = [],
 ): WorkflowGraphNode[] {
   return actions.flatMap((action) => {
-    const containers: WorkflowGraphNode[] = [];
-    const branches: { key: string; label: string; actions: ActionModel[] }[] =
-      [];
-
-    if (action.kind === "If") {
-      branches.push({
-        key: "then-box",
-        label: "Then",
-        actions: action.then ?? [],
-      });
-      branches.push({
-        key: "else-box",
-        label: "Else",
-        actions: action.else ?? [],
-      });
-    }
-
-    if (action.kind === "ConditionGroup") {
-      (action.conditions ?? []).forEach((condition, index) => {
-        branches.push({
-          key: `condition-${index}-box`,
-          label: `Condition ${index + 1}`,
-          actions: condition.actions,
-        });
-      });
-
-      branches.push({
-        key: "else-box",
-        label: "Else",
-        actions: action.else ?? [],
-      });
-    }
-
     if (!isBranchAction(action)) {
       return [];
     }
 
-    const isCollapsed = collapsed.includes(action.id);
+    const containers: WorkflowGraphNode[] = [];
+    const branches = branchesOf(action);
+    const containerLabel = action.kind === "If" ? "IF" : "CONDITIONGROUP";
 
-    if (isCollapsed) {
+    if (collapsed.includes(action.id)) {
       return [
         {
-          id: `${action.id}:box`,
+          id: nodeId.container(action.id),
           kind: "branch" as const,
-          displayName: action.kind === "If" ? "IF" : "CONDITIONGROUP",
+          displayName: containerLabel,
           x: (action.x ?? 0) - CONTAINER_PADDING,
           y: (action.y ?? 0) - CONTAINER_PADDING - CONTAINER_HEADER,
           width: PROCESS_NODE_WIDTH + CONTAINER_PADDING * 2,
@@ -153,19 +115,14 @@ function collectBranchContainers(
       const position = branchLabelPosition(action, index);
 
       containers.push({
-        id: `${action.id}:${branch.key}`,
+        id: nodeId.branch(action.id, branch.ref),
         kind: "branch",
         displayName: branch.label,
         x: position.x,
         y: position.y,
         width: BRANCH_LABEL_WIDTH,
         height: BRANCH_LABEL_HEIGHT,
-        branchKind:
-          branch.key === "then-box"
-            ? "then"
-            : branch.key === "else-box"
-              ? "else"
-              : "condition",
+        branchKind: branch.ref.branch,
       });
 
       boxes.push({
@@ -175,7 +132,7 @@ function collectBranchContainers(
         height: BRANCH_LABEL_HEIGHT,
       });
 
-      collectVisibleActions(branch.actions, collapsed).forEach((child) => {
+      flattenActions(branch.actions, collapsed).forEach((child) => {
         boxes.push({
           x: child.x ?? 0,
           y: child.y ?? 0,
@@ -196,7 +153,7 @@ function collectBranchContainers(
           };
 
       const adderNode = {
-        id: `${action.id}:${branch.key}:add`,
+        id: nodeId.branchAdder(action.id, branch.ref),
         kind: "branch" as const,
         displayName: "+",
         x: adderAnchor.x + BRANCH_GAP_X,
@@ -215,26 +172,15 @@ function collectBranchContainers(
       });
     });
 
-    if (action.kind === "ConditionGroup") {
-      const position = branchLabelPosition(action, branches.length);
-
-      boxes.push({
-        x: position.x,
-        y: position.y,
-        width: BRANCH_LABEL_WIDTH,
-        height: BRANCH_LABEL_HEIGHT,
-      });
-    }
-
     const minX = Math.min(...boxes.map((box) => box.x));
     const minY = Math.min(...boxes.map((box) => box.y));
     const maxX = Math.max(...boxes.map((box) => box.x + box.width));
     const maxY = Math.max(...boxes.map((box) => box.y + box.height));
 
     containers.unshift({
-      id: `${action.id}:box`,
+      id: nodeId.container(action.id),
       kind: "branch",
-      displayName: action.kind === "If" ? "IF" : "CONDITIONGROUP",
+      displayName: containerLabel,
       x: minX - CONTAINER_PADDING,
       y: minY - CONTAINER_PADDING - CONTAINER_HEADER,
       width: maxX - minX + CONTAINER_PADDING * 2,
@@ -254,115 +200,6 @@ function collectBranchContainers(
   });
 }
 
-function findActionInTree(
-  actions: ActionModel[],
-  id: string,
-): ActionModel | null {
-  for (const action of actions) {
-    if (action.id === id) {
-      return action;
-    }
-
-    if (action.then) {
-      const found = findActionInTree(action.then, id);
-      if (found) {
-        return found;
-      }
-    }
-
-    if (action.else) {
-      const found = findActionInTree(action.else, id);
-      if (found) {
-        return found;
-      }
-    }
-
-    if (action.conditions) {
-      for (const condition of action.conditions) {
-        const found = findActionInTree(condition.actions, id);
-        if (found) {
-          return found;
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
-function updateActionTree(
-  actions: ActionModel[],
-  id: string,
-  field: keyof ActionModel,
-  value: ActionModel[keyof ActionModel],
-): ActionModel[] {
-  return actions.map((action) => {
-    if (action.id === id) {
-      return { ...action, [field]: value } as ActionModel;
-    }
-
-    return {
-      ...action,
-      then: action.then
-        ? updateActionTree(action.then, id, field, value)
-        : action.then,
-      else: action.else
-        ? updateActionTree(action.else, id, field, value)
-        : action.else,
-      conditions: action.conditions
-        ? action.conditions.map((condition) => ({
-            ...condition,
-            actions: updateActionTree(condition.actions, id, field, value),
-          }))
-        : action.conditions,
-    };
-  });
-}
-
-function updateActionTreeBy(
-  actions: ActionModel[],
-  id: string,
-  transform: (action: ActionModel) => ActionModel,
-): ActionModel[] {
-  return actions.map((action) => {
-    if (action.id === id) {
-      return transform(action);
-    }
-
-    return {
-      ...action,
-      then: action.then
-        ? updateActionTreeBy(action.then, id, transform)
-        : action.then,
-      else: action.else
-        ? updateActionTreeBy(action.else, id, transform)
-        : action.else,
-      conditions: action.conditions
-        ? action.conditions.map((condition) => ({
-            ...condition,
-            actions: updateActionTreeBy(condition.actions, id, transform),
-          }))
-        : action.conditions,
-    };
-  });
-}
-
-function removeActionTree(actions: ActionModel[], id: string): ActionModel[] {
-  return actions
-    .filter((action) => action.id !== id)
-    .map((action) => ({
-      ...action,
-      then: action.then ? removeActionTree(action.then, id) : action.then,
-      else: action.else ? removeActionTree(action.else, id) : action.else,
-      conditions: action.conditions
-        ? action.conditions.map((condition) => ({
-            ...condition,
-            actions: removeActionTree(condition.actions, id),
-          }))
-        : action.conditions,
-    }));
-}
-
 import { buildYaml } from "./utils/yaml";
 import { actionKindOptions } from "./types";
 
@@ -375,12 +212,10 @@ export function WorkflowBuilder() {
   const [triggerKind, setTriggerKind] = useState("OnConversationStart");
   const [inputs, setInputs] = useState<InputParam[]>(defaultInputs);
   const [actions, setActions] = useState<ActionModel[]>(defaultActions);
-  const [connections, setConnections] =
-    useState<WorkflowConnection[]>(defaultConnections);
+  const [collapsedActionIds, setCollapsedActionIds] = useState<string[]>([]);
   const [selectedActionId, setSelectedActionId] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [collapsedActionIds, setCollapsedActionIds] = useState<string[]>([]);
   const [inspectorAnchor, setInspectorAnchor] = useState<{
     x: number;
     y: number;
@@ -410,7 +245,7 @@ export function WorkflowBuilder() {
       meta: "trigger",
     };
 
-    const visibleActions = collectVisibleActions(actions, collapsedActionIds);
+    const visibleActions = flattenActions(actions, collapsedActionIds);
     const processNodes = visibleActions.map((action, index) => ({
       id: action.id,
       kind: "process" as const,
@@ -457,8 +292,7 @@ export function WorkflowBuilder() {
   }, [actions, collapsedActionIds, nodePositions]);
 
   const workflowConnections = useMemo<WorkflowConnection[]>(() => {
-    const baseConnections: WorkflowConnection[] = [...connections];
-    const nextConnections: WorkflowConnection[] = [...baseConnections];
+    const nextConnections: WorkflowConnection[] = [];
 
     const addConnection = (
       from: string,
@@ -482,39 +316,27 @@ export function WorkflowBuilder() {
       nextConnections.push({ id: connectionId, from, to, kind });
     };
 
-    const collectTerminalActionIds = (list: ActionModel[]): string[] => {
-      if (list.length === 0) {
-        return [];
-      }
-
-      const lastAction = list[list.length - 1];
-      return [externalIdOf(lastAction)];
-    };
-
-    const connectBranch = (
-      action: ActionModel,
-      branchKey: string,
-      branchActions: ActionModel[],
-    ) => {
-      const branchBoxId = `${action.id}:${branchKey}`;
+    const connectBranch = (action: ActionModel, branch: BranchDef) => {
+      const branchBoxId = nodeId.branch(action.id, branch.ref);
+      const adderId = nodeId.branchAdder(action.id, branch.ref);
       addConnection(action.id, branchBoxId, "branch-root");
 
-      if (branchActions.length > 0) {
-        addConnection(
-          branchBoxId,
-          externalIdOf(branchActions[0]),
-          "branch-continue",
-        );
-        connectActionList(branchActions, "branch-continue");
-        addConnection(
-          externalIdOf(branchActions[branchActions.length - 1]),
-          `${branchBoxId}:add`,
-          "branch-end",
-        );
+      if (branch.actions.length === 0) {
+        addConnection(branchBoxId, adderId, "branch-end");
         return;
       }
 
-      addConnection(branchBoxId, `${branchBoxId}:add`, "branch-end");
+      addConnection(
+        branchBoxId,
+        externalIdOf(branch.actions[0]),
+        "branch-continue",
+      );
+      connectActionList(branch.actions, "branch-continue");
+      addConnection(
+        externalIdOf(branch.actions[branch.actions.length - 1]),
+        adderId,
+        "branch-end",
+      );
     };
 
     const connectActionList = (
@@ -522,12 +344,9 @@ export function WorkflowBuilder() {
       edgeKind: "sequential" | "branch-continue" = "sequential",
     ) => {
       for (let index = 0; index < list.length - 1; index += 1) {
-        const currentAction = list[index];
-        const nextAction = list[index + 1];
-
         addConnection(
-          externalIdOf(currentAction),
-          externalIdOf(nextAction),
+          externalIdOf(list[index]),
+          externalIdOf(list[index + 1]),
           edgeKind,
         );
       }
@@ -537,104 +356,35 @@ export function WorkflowBuilder() {
           continue;
         }
 
-        if (action.kind === "If") {
-          connectBranch(action, "then-box", action.then ?? []);
-          connectBranch(action, "else-box", action.else ?? []);
-        }
-
-        if (action.kind === "ConditionGroup") {
-          for (const [conditionIndex, condition] of (
-            action.conditions ?? []
-          ).entries()) {
-            connectBranch(
-              action,
-              `condition-${conditionIndex}-box`,
-              condition.actions,
-            );
-          }
-
-          connectBranch(action, "else-box", action.else ?? []);
+        for (const branch of branchesOf(action)) {
+          connectBranch(action, branch);
         }
       }
     };
 
     if (actions.length === 0) {
-      return [
-        ...nextConnections,
-        {
-          id: "workflow:start-workflow:output",
-          from: "workflow:start",
-          to: "workflow:output",
-        },
-      ].filter(
-        (connection, index, allConnections) =>
-          allConnections.findIndex(
-            (candidate) =>
-              candidate.from === connection.from &&
-              candidate.to === connection.to,
-          ) === index,
-      );
+      addConnection("workflow:start", "workflow:output", "sequential");
+      return nextConnections;
     }
 
     addConnection("workflow:start", externalIdOf(actions[0]), "sequential");
-
     connectActionList(actions);
-
-    if (actions.length > 0) {
-      const terminalActionIds = collectTerminalActionIds(actions);
-      for (const terminalActionId of terminalActionIds) {
-        addConnection(terminalActionId, "workflow:output", "sequential");
-      }
-    }
-
-    if (actions.length === 0 && inputs.length === 0) {
-      addConnection("workflow:start", "workflow:output", "sequential");
-    }
-
-    return nextConnections.filter(
-      (connection, index, allConnections) =>
-        allConnections.findIndex(
-          (candidate) =>
-            candidate.from === connection.from &&
-            candidate.to === connection.to,
-        ) === index,
+    addConnection(
+      externalIdOf(actions[actions.length - 1]),
+      "workflow:output",
+      "sequential",
     );
-  }, [actions, collapsedActionIds, connections]);
+
+    return nextConnections;
+  }, [actions, collapsedActionIds]);
 
   const moveBranchContainer = (
     actionId: string,
     deltaX: number,
     deltaY: number,
   ) => {
-    const shift = (list: ActionModel[]): ActionModel[] =>
-      list.map((item) => ({
-        ...item,
-        x: (item.x ?? 0) + deltaX,
-        y: (item.y ?? 0) + deltaY,
-        then: item.then ? shift(item.then) : item.then,
-        else: item.else ? shift(item.else) : item.else,
-        conditions: item.conditions
-          ? item.conditions.map((condition) => ({
-              ...condition,
-              actions: shift(condition.actions),
-            }))
-          : item.conditions,
-      }));
-
     setActions((previous) =>
-      updateActionTreeBy(previous, actionId, (action) => ({
-        ...action,
-        x: (action.x ?? 0) + deltaX,
-        y: (action.y ?? 0) + deltaY,
-        then: action.then ? shift(action.then) : action.then,
-        else: action.else ? shift(action.else) : action.else,
-        conditions: action.conditions
-          ? action.conditions.map((condition) => ({
-              ...condition,
-              actions: shift(condition.actions),
-            }))
-          : action.conditions,
-      })),
+      translateSubtree(previous, actionId, deltaX, deltaY),
     );
   };
 
@@ -648,7 +398,7 @@ export function WorkflowBuilder() {
 
   const removeCondition = (actionId: string, conditionIndex: number) => {
     setActions((previous) =>
-      updateActionTreeBy(previous, actionId, (action) => ({
+      updateActionInTree(previous, actionId, (action) => ({
         ...action,
         conditions: (action.conditions ?? []).filter(
           (_, index) => index !== conditionIndex,
@@ -686,9 +436,8 @@ export function WorkflowBuilder() {
     field: K,
     value: ActionModel[K],
   ) => {
-    setActions(
-      (previous) =>
-        updateActionTree(previous, id, field, value) as ActionModel[],
+    setActions((previous) =>
+      updateActionInTree(previous, id, { [field]: value }),
     );
   };
 
@@ -750,162 +499,43 @@ export function WorkflowBuilder() {
       y: 70 + Math.floor(nextIndex / 3) * 170,
     };
 
-    const insertAfterAction = (
-      items: ActionModel[],
-      targetId: string,
-      actionToInsert: ActionModel,
-    ): ActionModel[] =>
-      items.flatMap((item) => {
-        const nextThen: ActionModel[] | undefined = item.then
-          ? insertAfterAction(item.then, targetId, actionToInsert)
-          : item.then;
-        const nextElse: ActionModel[] | undefined = item.else
-          ? insertAfterAction(item.else, targetId, actionToInsert)
-          : item.else;
-        const nextConditions = item.conditions
-          ? item.conditions.map((condition) => ({
-              ...condition,
-              actions: insertAfterAction(
-                condition.actions,
-                targetId,
-                actionToInsert,
-              ),
-            }))
-          : item.conditions;
-
-        if (item.id === targetId) {
-          return [item, actionToInsert];
-        }
-
-        return [
-          {
-            ...item,
-            then: nextThen,
-            else: nextElse,
-            conditions: nextConditions,
-          },
-        ];
-      });
-
-    const targetAction = destination?.parentId
-      ? findActionInTree(actions, destination.parentId)
+    const parent = destination?.parentId
+      ? findAction(actions, destination.parentId)
       : null;
-
-    if (targetAction && isBranchAction(targetAction) && destination?.branch) {
-      const branchKey = destination.branch;
-      const existingBranch = (targetAction[branchKey] ?? []) as ActionModel[];
-      const slotIndex = destination.insertAtHead ? 0 : existingBranch.length;
-      const branchRowIndex =
-        targetAction.kind === "If"
-          ? branchKey === "then"
-            ? 0
-            : 1
-          : (targetAction.conditions?.length ?? 0);
-      const labelPosition = branchLabelPosition(targetAction, branchRowIndex);
-      const branchAction = {
-        ...nextAction,
-        x:
-          labelPosition.x +
-          BRANCH_LABEL_WIDTH +
-          60 +
-          slotIndex * (PROCESS_NODE_WIDTH + 60),
-        y: labelPosition.y - (PROCESS_NODE_HEIGHT - BRANCH_LABEL_HEIGHT) / 2,
-      };
-
-      setActions((previous) => {
-        const appendToBranch = (items: ActionModel[]): ActionModel[] =>
-          items.map((item) => {
-            if (item.id === targetAction.id) {
-              const currentBranch = (item[branchKey] ?? []) as ActionModel[];
-
-              return {
-                ...item,
-                [branchKey]: destination.insertAtHead
-                  ? [branchAction, ...currentBranch]
-                  : [...currentBranch, branchAction],
-              } as ActionModel;
-            }
-
-            return {
-              ...item,
-              then: item.then ? appendToBranch(item.then) : item.then,
-              else: item.else ? appendToBranch(item.else) : item.else,
-              conditions: item.conditions
-                ? item.conditions.map((condition) => ({
-                    ...condition,
-                    actions: appendToBranch(condition.actions),
-                  }))
-                : item.conditions,
-            };
-          });
-
-        return appendToBranch(previous);
-      });
-
-      selectAction(branchAction.id, anchor);
-      return;
-    }
-
-    if (
-      targetAction &&
-      targetAction.kind === "ConditionGroup" &&
+    const branchRef: BranchRef | null =
       destination?.conditionIndex !== undefined
-    ) {
-      const conditionIndex = destination.conditionIndex;
-      const existingBranch =
-        targetAction.conditions?.[conditionIndex]?.actions ?? [];
-      const slotIndex = destination.insertAtHead ? 0 : existingBranch.length;
-      const labelPosition = branchLabelPosition(targetAction, conditionIndex);
+        ? { branch: "condition", index: destination.conditionIndex }
+        : destination?.branch
+          ? { branch: destination.branch }
+          : null;
+
+    if (parent && isBranchAction(parent) && branchRef) {
+      const position = destination?.insertAtHead ? "head" : "tail";
+      const slotIndex =
+        position === "head" ? 0 : branchActionsOf(parent, branchRef).length;
+      const labelPosition = branchLabelPosition(
+        parent,
+        branchRowIndex(parent, branchRef),
+      );
       const branchAction = {
         ...nextAction,
         x:
           labelPosition.x +
           BRANCH_LABEL_WIDTH +
-          60 +
-          slotIndex * (PROCESS_NODE_WIDTH + 60),
+          BRANCH_GAP_X +
+          slotIndex * (PROCESS_NODE_WIDTH + BRANCH_GAP_X),
         y: labelPosition.y - (PROCESS_NODE_HEIGHT - BRANCH_LABEL_HEIGHT) / 2,
       };
 
-      setActions((previous) => {
-        const appendToCondition = (items: ActionModel[]): ActionModel[] =>
-          items.map((item) => {
-            if (item.id === targetAction.id) {
-              const nextConditions = [...(item.conditions ?? [])];
-              const targetCondition = nextConditions[conditionIndex];
-
-              if (!targetCondition) {
-                return item;
-              }
-
-              nextConditions[conditionIndex] = {
-                ...targetCondition,
-                actions: destination.insertAtHead
-                  ? [branchAction, ...targetCondition.actions]
-                  : [...targetCondition.actions, branchAction],
-              };
-
-              return {
-                ...item,
-                conditions: nextConditions,
-              };
-            }
-
-            return {
-              ...item,
-              then: item.then ? appendToCondition(item.then) : item.then,
-              else: item.else ? appendToCondition(item.else) : item.else,
-              conditions: item.conditions
-                ? item.conditions.map((condition) => ({
-                    ...condition,
-                    actions: appendToCondition(condition.actions),
-                  }))
-                : item.conditions,
-            };
-          });
-
-        return appendToCondition(previous);
-      });
-
+      setActions((previous) =>
+        insertIntoBranch(
+          previous,
+          parent.id,
+          branchRef,
+          branchAction,
+          position,
+        ),
+      );
       selectAction(branchAction.id, anchor);
       return;
     }
@@ -913,22 +543,20 @@ export function WorkflowBuilder() {
     const insertAfterId = destination?.insertAfterId;
     if (insertAfterId) {
       const targetNode =
-        insertAfterId === "workflow:start"
+        insertAfterId === START_NODE_ID
           ? null
-          : findActionInTree(actions, insertAfterId);
+          : findAction(actions, insertAfterId);
       const insertedAction = {
         ...nextAction,
         x: (targetNode?.x ?? nextAction.x) + 220,
         y: (targetNode?.y ?? nextAction.y) + 120,
       };
 
-      setActions((previous) => {
-        if (insertAfterId === "workflow:start") {
-          return [insertedAction, ...previous];
-        }
-
-        return insertAfterAction(previous, insertAfterId, insertedAction);
-      });
+      setActions((previous) =>
+        insertAfterId === START_NODE_ID
+          ? [insertedAction, ...previous]
+          : insertAfter(previous, insertAfterId, insertedAction),
+      );
 
       selectAction(insertedAction.id, anchor);
       return;
@@ -939,111 +567,20 @@ export function WorkflowBuilder() {
   };
 
   const addCondition = (actionId: string) => {
-    const nextCondition = {
-      condition: "=true",
-      actions: [] as ActionModel[],
-    };
-
     setActions((previous) =>
-      previous.map((action) => {
-        if (action.id === actionId) {
-          return {
-            ...action,
-            conditions: [...(action.conditions ?? []), nextCondition],
-          };
-        }
-
-        return {
-          ...action,
-          then: action.then
-            ? addConditionToTree(action.then, actionId, nextCondition)
-            : action.then,
-          else: action.else
-            ? addConditionToTree(action.else, actionId, nextCondition)
-            : action.else,
-          conditions: action.conditions
-            ? action.conditions.map((condition) => ({
-                ...condition,
-                actions: addConditionToTree(
-                  condition.actions,
-                  actionId,
-                  nextCondition,
-                ),
-              }))
-            : action.conditions,
-        };
-      }),
+      updateActionInTree(previous, actionId, (action) => ({
+        ...action,
+        conditions: [
+          ...(action.conditions ?? []),
+          { condition: "=true", actions: [] },
+        ],
+      })),
     );
   };
-
-  const addConditionToTree = (
-    actionsToSearch: ActionModel[],
-    actionId: string,
-    newCondition: { condition: string; actions: ActionModel[] },
-  ): ActionModel[] =>
-    actionsToSearch.map((action) => {
-      if (action.id === actionId) {
-        return {
-          ...action,
-          conditions: [...(action.conditions ?? []), newCondition],
-        };
-      }
-
-      return {
-        ...action,
-        then: action.then
-          ? addConditionToTree(action.then, actionId, newCondition)
-          : action.then,
-        else: action.else
-          ? addConditionToTree(action.else, actionId, newCondition)
-          : action.else,
-        conditions: action.conditions
-          ? action.conditions.map((condition) => ({
-              ...condition,
-              actions: addConditionToTree(
-                condition.actions,
-                actionId,
-                newCondition,
-              ),
-            }))
-          : action.conditions,
-      };
-    });
 
   const removeAction = (id: string) => {
-    setActions((previous) => removeActionTree(previous, id));
-    setConnections((previous) =>
-      previous.filter(
-        (connection) => connection.from !== id && connection.to !== id,
-      ),
-    );
+    setActions((previous) => removeActionFromTree(previous, id));
     closeInspector();
-  };
-
-  const createConnection = (from: string, to: string) => {
-    if (from === to) {
-      return;
-    }
-
-    setConnections((previous) => {
-      const alreadyExists = previous.some(
-        (connection) => connection.from === from && connection.to === to,
-      );
-
-      if (alreadyExists) {
-        return previous;
-      }
-
-      return [
-        ...previous,
-        {
-          id: `${from}-${to}`,
-          from,
-          to,
-          kind: "sequential",
-        },
-      ];
-    });
   };
 
   const addActionFromConnector = (
@@ -1052,17 +589,20 @@ export function WorkflowBuilder() {
     mode: "after" | "branch-append" = "after",
     anchor?: { x: number; y: number },
   ) => {
-    const isAdder = sourceId.endsWith(":add");
-    const branchId = isAdder ? sourceId.slice(0, -":add".length) : sourceId;
-    const appendToBranch = isAdder || mode === "branch-append";
+    const source = parseNodeId(sourceId);
 
-    const thenElseMatch = branchId.match(/^(.*):(then|else)-box$/);
-    if (thenElseMatch) {
+    if (source.kind === "branch" || source.kind === "branchAdder") {
+      const appendToBranch =
+        source.kind === "branchAdder" || mode === "branch-append";
+
       addAction(
         kind,
         {
-          parentId: thenElseMatch[1],
-          branch: thenElseMatch[2] as "then" | "else",
+          parentId: source.actionId,
+          branch:
+            source.ref.branch === "condition" ? undefined : source.ref.branch,
+          conditionIndex:
+            source.ref.branch === "condition" ? source.ref.index : undefined,
           insertAtHead: !appendToBranch,
         },
         anchor,
@@ -1070,24 +610,11 @@ export function WorkflowBuilder() {
       return;
     }
 
-    const conditionMatch = branchId.match(/^(.*):condition-(\d+)-box$/);
-    if (conditionMatch) {
-      addAction(
-        kind,
-        {
-          parentId: conditionMatch[1],
-          conditionIndex: Number(conditionMatch[2]),
-          insertAtHead: !appendToBranch,
-        },
-        anchor,
-      );
-      return;
-    }
-
-    const containerMatch = branchId.match(/^(.*):box$/);
     addAction(
       kind,
-      { insertAfterId: containerMatch ? containerMatch[1] : sourceId },
+      {
+        insertAfterId: source.kind === "container" ? source.actionId : sourceId,
+      },
       anchor,
     );
   };
@@ -1114,7 +641,7 @@ export function WorkflowBuilder() {
     setInspectorAnchor(null);
   };
 
-  const resolvedActionId = findActionInTree(actions, selectedActionId)
+  const resolvedActionId = findAction(actions, selectedActionId)
     ? selectedActionId
     : "";
 
@@ -1150,7 +677,6 @@ export function WorkflowBuilder() {
             }
             onUpdateAction={updateAction}
             onUpdateNodePosition={updateNodePosition}
-            onCreateConnection={createConnection}
             onAddActionFromConnector={addActionFromConnector}
             onMoveBranchContainer={moveBranchContainer}
             onToggleBranchCollapse={toggleBranchCollapse}

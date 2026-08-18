@@ -1,11 +1,4 @@
-import type {
-  ActionKind,
-  ActionModel,
-  InputParam,
-  WorkflowConnection,
-} from "./types";
-
-export const defaultConnections: WorkflowConnection[] = [];
+import type { ActionKind, ActionModel, InputParam } from "./types";
 
 export const defaultInputs: InputParam[] = [];
 
