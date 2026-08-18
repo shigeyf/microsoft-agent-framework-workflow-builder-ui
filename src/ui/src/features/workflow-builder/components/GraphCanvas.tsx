@@ -3,6 +3,7 @@ import {
   Background,
   BaseEdge,
   ConnectionLineType,
+  ControlButton,
   Controls,
   EdgeLabelRenderer,
   Handle,
@@ -64,6 +65,7 @@ type GraphCanvasProps = {
   onAddCondition?: (actionId: string) => void;
   onRemoveCondition?: (actionId: string, conditionIndex: number) => void;
   onSelectWorkflow: (anchor: { x: number; y: number }) => void;
+  onAutoArrange: () => void;
 };
 
 type FlowNodeData = {
@@ -317,6 +319,7 @@ export function GraphCanvas({
   onAddCondition,
   onRemoveCondition,
   onSelectWorkflow,
+  onAutoArrange,
 }: GraphCanvasProps) {
   // State rather than a ref: ending a drag has to re-run the sync effect.
   const [dragging, setDragging] = useState(false);
@@ -656,7 +659,21 @@ export function GraphCanvas({
           style={{ width: "100%", height: "100%" }}
         >
           <Background color="#334155" gap={24} size={1} />
-          <Controls position="bottom-right" />
+          <Controls position="bottom-right">
+            <ControlButton onClick={onAutoArrange} title="Auto arrange">
+              <svg viewBox="0 0 16 16" aria-label="Auto arrange">
+                <rect x="1" y="6" width="4" height="4" rx="1" />
+                <rect x="11" y="1" width="4" height="4" rx="1" />
+                <rect x="11" y="11" width="4" height="4" rx="1" />
+                <path
+                  d="M5 8h3v-5h3M8 8h3v5h0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+              </svg>
+            </ControlButton>
+          </Controls>
         </ReactFlow>
 
         {connectorPicker ? (

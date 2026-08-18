@@ -410,7 +410,6 @@ export function WorkflowBuilder() {
         onImportYaml={importYaml}
         onImportFailed={setImportError}
         onNewWorkflow={resetWorkflow}
-        onAutoArrange={() => commitActions(actions)}
       />
 
       {importError ? (
@@ -437,6 +436,7 @@ export function WorkflowBuilder() {
             onToggleBranchCollapse={toggleBranchCollapse}
             onAddCondition={addCondition}
             onRemoveCondition={removeCondition}
+            onAutoArrange={() => commitActions(actions)}
             onSelectWorkflow={(anchor) =>
               handleNodeSelection(START_NODE_ID, "workflow", anchor)
             }
