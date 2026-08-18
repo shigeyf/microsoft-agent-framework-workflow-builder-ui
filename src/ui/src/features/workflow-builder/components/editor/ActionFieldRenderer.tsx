@@ -1,4 +1,9 @@
-import type { ActionKind, ActionModel } from "../../types";
+import type {
+  ActionKind,
+  ActionModel,
+  AgentInput,
+  AgentOutput,
+} from "../../types";
 
 type ActionFieldRendererProps = {
   action: ActionModel;
@@ -242,6 +247,24 @@ export function ActionFieldRenderer({
   }
 
   if (action.kind === "InvokeAzureAgent") {
+    const input = action.input ?? {};
+    const output = action.output ?? {};
+    const args = Object.entries(input.arguments ?? {});
+
+    const patchInput = (patch: Partial<AgentInput>) =>
+      onUpdateAction(action.id, "input", { ...input, ...patch });
+    const patchOutput = (patch: Partial<AgentOutput>) =>
+      onUpdateAction(action.id, "output", { ...output, ...patch });
+    const renameArgument = (index: number, key: string) =>
+      patchInput({
+        arguments: Object.fromEntries(
+          args.map(([name, value], current) => [
+            current === index ? key : name,
+            value,
+          ]),
+        ),
+      });
+
     return (
       <>
         <label>
@@ -261,6 +284,102 @@ export function ActionFieldRenderer({
               onUpdateAction(action.id, "conversationId", event.target.value)
             }
           />
+        </label>
+
+        <label>
+          <span>Input messages</span>
+          <input
+            value={input.messages ?? ""}
+            onChange={(event) => patchInput({ messages: event.target.value })}
+          />
+        </label>
+
+        <label>
+          <span>External loop condition</span>
+          <textarea
+            value={input.externalLoop?.when ?? ""}
+            onChange={(event) =>
+              patchInput({ externalLoop: { when: event.target.value } })
+            }
+          />
+        </label>
+
+        <div className="inspector-actions-row">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              patchInput({
+                arguments: { ...(input.arguments ?? {}), "": "" },
+              })
+            }
+          >
+            + Add argument
+          </button>
+        </div>
+
+        {args.map(([key, value], index) => (
+          <div key={index} className="argument-row">
+            <input
+              aria-label={`Argument ${index + 1} name`}
+              placeholder="name"
+              value={key}
+              onChange={(event) => renameArgument(index, event.target.value)}
+            />
+            <input
+              aria-label={`Argument ${index + 1} value`}
+              placeholder="=Local.value"
+              value={value}
+              onChange={(event) =>
+                patchInput({
+                  arguments: { ...input.arguments, [key]: event.target.value },
+                })
+              }
+            />
+            <button
+              type="button"
+              className="danger-button"
+              aria-label={`Remove argument ${index + 1}`}
+              onClick={() =>
+                patchInput({
+                  arguments: Object.fromEntries(
+                    args.filter((_, current) => current !== index),
+                  ),
+                })
+              }
+            >
+              ×
+            </button>
+          </div>
+        ))}
+
+        <label>
+          <span>Output response object</span>
+          <input
+            value={output.responseObject ?? ""}
+            onChange={(event) =>
+              patchOutput({ responseObject: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          <span>Output messages</span>
+          <input
+            value={output.messages ?? ""}
+            onChange={(event) => patchOutput({ messages: event.target.value })}
+          />
+        </label>
+
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={output.autoSend ?? false}
+            onChange={(event) =>
+              patchOutput({ autoSend: event.target.checked })
+            }
+          />
+          <span>Auto send response</span>
         </label>
       </>
     );

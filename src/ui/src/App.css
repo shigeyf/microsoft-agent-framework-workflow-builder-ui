@@ -139,6 +139,23 @@ button:hover {
   color: #fca5a5;
 }
 
+.inspector-panel .argument-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.inspector-panel .checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.inspector-panel .checkbox-field input {
+  width: auto;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(380px, 2.2fr) minmax(300px, 1.1fr);

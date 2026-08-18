@@ -31,6 +31,19 @@ export type InputParam = {
   description: string;
 };
 
+export type AgentInput = {
+  messages?: string;
+  arguments?: Record<string, string>;
+  /** Repeats the agent call while this expression stays true. */
+  externalLoop?: { when?: string };
+};
+
+export type AgentOutput = {
+  responseObject?: string;
+  messages?: string;
+  autoSend?: boolean;
+};
+
 export type ActionModel = {
   id: string;
   kind: ActionKind;
@@ -57,7 +70,8 @@ export type ActionModel = {
   elseText?: string;
   agentName?: string;
   conversationId?: string;
-  output?: { responseObject?: string; autoSend?: boolean };
+  input?: AgentInput;
+  output?: AgentOutput;
 };
 
 export type WorkflowConnection = {

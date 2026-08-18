@@ -3,6 +3,8 @@ import { actionKindOptions } from "../types";
 import type {
   ActionKind,
   ActionModel,
+  AgentInput,
+  AgentOutput,
   ConditionBranch,
   InputParam,
   WorkflowInputType,
@@ -166,6 +168,16 @@ function parseAction(
     action.agentName = nestedText(raw.agent, "name");
   }
 
+  const input = parseAgentInput(raw.input);
+  if (input) {
+    action.input = input;
+  }
+
+  const output = parseAgentOutput(raw.output);
+  if (output) {
+    action.output = output;
+  }
+
   if (raw.then !== undefined) {
     action.then = parseActionList(raw.then, ids, unsupported);
   }
@@ -190,6 +202,52 @@ function parseAction(
   }
 
   return action;
+}
+
+function parseAgentInput(raw: unknown): AgentInput | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+
+  const input: AgentInput = {};
+
+  if (raw.messages !== undefined) {
+    input.messages = asText(raw.messages);
+  }
+
+  if (isRecord(raw.arguments)) {
+    input.arguments = Object.fromEntries(
+      Object.entries(raw.arguments).map(([key, value]) => [key, asText(value)]),
+    );
+  }
+
+  if (raw.externalLoop !== undefined) {
+    input.externalLoop = { when: nestedText(raw.externalLoop, "when") };
+  }
+
+  return input;
+}
+
+function parseAgentOutput(raw: unknown): AgentOutput | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+
+  const output: AgentOutput = {};
+
+  if (raw.responseObject !== undefined) {
+    output.responseObject = asText(raw.responseObject);
+  }
+
+  if (raw.messages !== undefined) {
+    output.messages = asText(raw.messages);
+  }
+
+  if (raw.autoSend !== undefined) {
+    output.autoSend = raw.autoSend === true || raw.autoSend === "true";
+  }
+
+  return output;
 }
 
 function parseActionList(

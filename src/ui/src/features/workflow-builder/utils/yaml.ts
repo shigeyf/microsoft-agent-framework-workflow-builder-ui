@@ -1,4 +1,10 @@
-import type { ActionModel, InputParam, WorkflowStyle } from "../types";
+import type {
+  ActionModel,
+  AgentInput,
+  AgentOutput,
+  InputParam,
+  WorkflowStyle,
+} from "../types";
 
 /** `: ` and ` #` end a plain scalar, so any value containing them must be quoted. */
 function needsQuoting(value: string): boolean {
@@ -10,13 +16,27 @@ function needsQuoting(value: string): boolean {
   );
 }
 
+/** JSON is valid YAML, so structured values survive as a flow mapping instead of a string. */
+function isJsonStructure(value: string): boolean {
+  if (!/^[[{]/.test(value)) {
+    return false;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null;
+  } catch {
+    return false;
+  }
+}
+
 function yamlScalar(value: string): string {
   if (!value) {
     return '""';
   }
 
   // Expressions must keep their leading `=`, so single quotes are used instead of JSON escaping.
-  if (value.startsWith("=")) {
+  if (value.startsWith("=") && !value.includes("\n")) {
     return needsQuoting(value) ? `'${value.replaceAll("'", "''")}'` : value;
   }
 
@@ -24,7 +44,82 @@ function yamlScalar(value: string): string {
     return value;
   }
 
+  if (isJsonStructure(value)) {
+    return value;
+  }
+
   return JSON.stringify(value);
+}
+
+/**
+ * A block scalar cannot reproduce a leading blank line, leading indentation or a
+ * trailing newline, so those values fall back to a quoted scalar.
+ */
+function canUseBlockScalar(value: string): boolean {
+  return (
+    value.includes("\n") &&
+    !value.endsWith("\n") &&
+    !/^\s/.test(value) &&
+    value.split("\n").every((line) => line === line.trimEnd())
+  );
+}
+
+/**
+ * Renders `key: value`, preferring a literal block scalar for multi-line values
+ * because quoted scalars fold their newlines into spaces.
+ */
+function field(indent: string, key: string, value: string): string[] {
+  if (!canUseBlockScalar(value)) {
+    return [`${indent}${key}: ${yamlScalar(value)}`];
+  }
+
+  return [
+    `${indent}${key}: |-`,
+    ...value.split("\n").map((line) => `${indent}  ${line}`),
+  ];
+}
+
+function renderAgentInput(input: AgentInput, indent: string): string[] {
+  const lines: string[] = [];
+
+  if (input.messages) {
+    lines.push(...field(`${indent}  `, "messages", input.messages));
+  }
+
+  const args = Object.entries(input.arguments ?? {});
+  if (args.length > 0) {
+    lines.push(`${indent}  arguments:`);
+    for (const [key, value] of args) {
+      lines.push(...field(`${indent}    `, key, value));
+    }
+  }
+
+  if (input.externalLoop?.when) {
+    lines.push(`${indent}  externalLoop:`);
+    lines.push(...field(`${indent}    `, "when", input.externalLoop.when));
+  }
+
+  return lines.length > 0 ? [`${indent}input:`, ...lines] : [];
+}
+
+function renderAgentOutput(output: AgentOutput, indent: string): string[] {
+  const lines: string[] = [];
+
+  if (output.autoSend !== undefined) {
+    lines.push(`${indent}  autoSend: ${output.autoSend}`);
+  }
+
+  if (output.responseObject) {
+    lines.push(
+      ...field(`${indent}  `, "responseObject", output.responseObject),
+    );
+  }
+
+  if (output.messages) {
+    lines.push(...field(`${indent}  `, "messages", output.messages));
+  }
+
+  return lines.length > 0 ? [`${indent}output:`, ...lines] : [];
 }
 
 function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
@@ -44,25 +139,25 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
     switch (action.kind) {
       case "SetValue":
         lines.push(
-          `${indent}  path: ${yamlScalar(action.path ?? "Local.value")}`,
+          ...field(`${indent}  `, "path", action.path ?? "Local.value"),
         );
-        lines.push(`${indent}  value: ${yamlScalar(action.value ?? "")}`);
+        lines.push(...field(`${indent}  `, "value", action.value ?? ""));
         break;
       case "SetVariable":
         lines.push(
-          `${indent}  variable: ${yamlScalar(action.variable ?? "Local.value")}`,
+          ...field(`${indent}  `, "variable", action.variable ?? "Local.value"),
         );
-        lines.push(`${indent}  value: ${yamlScalar(action.value ?? "")}`);
+        lines.push(...field(`${indent}  `, "value", action.value ?? ""));
         break;
       case "SendActivity": {
         const text = action.activity?.text ?? action.activityText ?? "";
         lines.push(`${indent}  activity:`);
-        lines.push(`${indent}    text: ${yamlScalar(text)}`);
+        lines.push(...field(`${indent}    `, "text", text));
         break;
       }
       case "If": {
         lines.push(
-          `${indent}  condition: ${yamlScalar(action.condition ?? "=true")}`,
+          ...field(`${indent}  `, "condition", action.condition ?? "=true"),
         );
 
         const thenActions =
@@ -84,9 +179,9 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
       case "ConditionGroup": {
         lines.push(`${indent}  conditions:`);
         for (const condition of action.conditions ?? []) {
-          lines.push(
-            `${indent}    - condition: ${yamlScalar(condition.condition)}`,
-          );
+          const head = field(`${indent}    `, "condition", condition.condition);
+          lines.push(`${indent}    - ${head[0].trimStart()}`);
+          lines.push(...head.slice(1).map((line) => `  ${line}`));
           if (condition.id) {
             lines.push(`${indent}      id: ${yamlScalar(condition.id)}`);
           }
@@ -109,6 +204,12 @@ function renderActionList(actions: ActionModel[], indentLevel = 2): string[] {
           lines.push(
             `${indent}  conversationId: ${yamlScalar(action.conversationId)}`,
           );
+        }
+        if (action.input) {
+          lines.push(...renderAgentInput(action.input, `${indent}  `));
+        }
+        if (action.output) {
+          lines.push(...renderAgentOutput(action.output, `${indent}  `));
         }
         break;
       }

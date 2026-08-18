@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import conditionalWorkflow from "./__fixtures__/conditional_workflow.yaml?raw";
 import customerSupport from "./__fixtures__/customer_support.yaml?raw";
 import humanInLoop from "./__fixtures__/human_in_loop.yaml?raw";
@@ -24,6 +25,76 @@ const SAMPLE_NAMES = Object.keys(SAMPLES) as (keyof typeof SAMPLES)[];
 
 function readSample(name: keyof typeof SAMPLES): string {
   return SAMPLES[name];
+}
+
+const NESTING_KEYS = new Set([
+  "then",
+  "else",
+  "elseActions",
+  "conditions",
+  "actions",
+]);
+
+/**
+ * Collects the property paths authored under every action that has an id.
+ * The model round trip cannot see fields that both the parser and the writer
+ * ignore, so this compares the YAML documents instead.
+ */
+function propertyPathsById(text: string): Map<string, Set<string>> {
+  const found = new Map<string, Set<string>>();
+
+  const visitAction = (action: Record<string, unknown>) => {
+    const paths = new Set<string>();
+
+    for (const [key, value] of Object.entries(action)) {
+      if (NESTING_KEYS.has(key)) {
+        continue;
+      }
+
+      paths.add(key);
+
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        for (const nested of Object.keys(value)) {
+          paths.add(`${key}.${nested}`);
+        }
+      }
+    }
+
+    if (typeof action.id === "string") {
+      found.set(action.id, paths);
+    }
+
+    for (const key of NESTING_KEYS) {
+      walk(action[key]);
+    }
+  };
+
+  const walk = (node: unknown) => {
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        walk(item);
+      }
+      return;
+    }
+
+    if (!node || typeof node !== "object") {
+      return;
+    }
+
+    const record = node as Record<string, unknown>;
+
+    if (typeof record.kind === "string" && record.kind !== "Workflow") {
+      visitAction(record);
+      return;
+    }
+
+    for (const value of Object.values(record)) {
+      walk(value);
+    }
+  };
+
+  walk(parse(text));
+  return found;
 }
 
 describe("parseWorkflowYaml with official Agent Framework samples", () => {
@@ -99,6 +170,29 @@ describe("parseWorkflowYaml with official Agent Framework samples", () => {
 
         expect(overlaps, `${a.id} overlaps ${b.id}`).toBe(false);
       }
+    }
+  });
+
+  it.each(SAMPLE_NAMES)("keeps every authored property of %s", (sample) => {
+    const original = readSample(sample);
+    const first = parseWorkflowYaml(original);
+    const regenerated = buildYaml(
+      first.style,
+      first.name,
+      first.description,
+      first.triggerKind,
+      first.inputs,
+      first.actions,
+    );
+
+    const before = propertyPathsById(original);
+    const after = propertyPathsById(regenerated);
+
+    for (const [id, paths] of before) {
+      const kept = after.get(id) ?? new Set<string>();
+      const dropped = [...paths].filter((path) => !kept.has(path));
+
+      expect(dropped, `${id} lost ${dropped.join(", ")}`).toEqual([]);
     }
   });
 
