@@ -99,13 +99,13 @@ export function WorkflowBuilder() {
     const laid = autoLayout(next);
 
     setActions(laid.actions);
-    setNodePositions((previous) => ({
-      ...previous,
+    setNodePositions({
+      start: LAYOUT.startPosition,
       output: {
         x: laid.right + LAYOUT.branchGapX,
         y: LAYOUT.startPosition.y,
       },
-    }));
+    });
   };
 
   const moveBranchContainer = (
@@ -360,10 +360,6 @@ export function WorkflowBuilder() {
     setTriggerKind(parsed.triggerKind);
     setInputs(parsed.inputs);
     commitActions(parsed.actions);
-    setNodePositions((previous) => ({
-      ...previous,
-      start: LAYOUT.startPosition,
-    }));
     setCollapsedActionIds([]);
     closeInspector();
     setImportError(importWarning(parsed));
@@ -374,12 +370,8 @@ export function WorkflowBuilder() {
     setDescription("");
     setTriggerKind("OnConversationStart");
     setInputs([]);
-    setActions([]);
+    commitActions([]);
     setCollapsedActionIds([]);
-    setNodePositions({
-      start: LAYOUT.startPosition,
-      output: LAYOUT.outputPosition,
-    });
     closeInspector();
     setImportError("");
   };
