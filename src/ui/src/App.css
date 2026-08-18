@@ -1,184 +1,972 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-}
-
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
-}
-
-#center {
+.app-shell {
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  color: #e2e8f0;
 }
 
-#next-steps {
+.topbar {
   display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.9);
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #7dd3fc;
 }
 
-#next-steps ul {
+.topbar h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  color: #f8fafc;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.segmented-control {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+}
+
+.segmented-control select {
+  width: auto;
+  min-width: 120px;
+}
+
+select,
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+select,
+input,
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.75);
+  color: #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  color: white;
+  font-weight: 600;
+  padding: 10px 16px;
+}
+
+.secondary-button,
+.danger-button,
+.action-select {
+  background: rgba(30, 41, 59, 0.9);
+  color: #e2e8f0;
+  padding: 9px 12px;
+}
+
+.danger-button {
+  background: rgba(127, 29, 29, 0.9);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(380px, 2.2fr) minmax(300px, 1.1fr);
+  gap: 20px;
+  padding: 20px;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.workspace.yaml-collapsed {
+  grid-template-columns: 1fr auto;
+}
+
+.canvas-stage {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+}
+
+.canvas-quick-actions {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  display: flex;
+  gap: 12px;
+  z-index: 9;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 10px;
+  backdrop-filter: blur(6px);
+}
+
+.panel {
+  background: rgba(15, 23, 42, 0.76);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  padding: 18px;
+  min-height: 0;
+}
+
+.graph-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.inspector-panel {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: min(320px, calc(100% - 32px));
+  max-height: calc(100% - 36px);
+  overflow: auto;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.5);
+  z-index: 10;
+  padding: 16px;
+}
+
+.inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  color: #f8fafc;
+}
+
+.inspector-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.inspector-actions-row .secondary-button,
+.inspector-actions-row .action-select {
+  flex: 1;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.9);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.icon-button.large {
+  width: 42px;
+  height: 42px;
+  font-weight: 700;
+}
+
+.inspector-toggle-group {
+  display: none;
+}
+
+.action-select.accent {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+/* Dropdown lists don't inherit the select's colors, so set them explicitly. */
+select option {
+  background: #0f172a;
+  color: #e2e8f0;
+  font-weight: 400;
+}
+
+.section-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7dd3fc;
+}
+
+.empty-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.input-list {
   list-style: none;
+  margin: 0;
   padding: 0;
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-list li {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.input-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  text-align: left;
+  font-size: 0.82rem;
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.input-item:hover {
+  border-color: rgba(125, 211, 252, 0.6);
 }
 
-.ticks {
-  position: relative;
+.input-item small {
+  color: #7dd3fc;
+  font-size: 0.7rem;
+}
+
+.input-remove-button {
+  width: 28px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
+}
+
+.input-remove-button:hover {
+  background: rgba(127, 29, 29, 0.6);
+  border-color: rgba(248, 113, 113, 0.7);
+  color: #fecaca;
+}
+
+.inspector-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.inspector-toolbar.stacked {
+  margin-top: 16px;
+}
+
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.collapse-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   width: 100%;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
 
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
+.collapse-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.collapse-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.collapse-header span {
+  font-size: 1.4rem;
+  line-height: 1;
+  color: #7dd3fc;
+}
+
+.section-block h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.collapse-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.mini-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 12px;
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-item {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-item.selected {
+  border-color: rgba(125, 211, 252, 0.7);
+  background: rgba(14, 116, 144, 0.24);
+}
+
+.action-item small {
+  color: #7dd3fc;
+}
+
+.editor-block {
+  min-height: 100%;
+}
+
+.canvas-header {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.connect-button {
+  max-width: 220px;
+}
+
+.canvas-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.72);
+  overflow: hidden;
+}
+
+.workflow-react-flow {
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    rgba(15, 23, 42, 0.72);
+  background-size:
+    24px 24px,
+    24px 24px,
+    auto;
+}
+
+.flow-node {
+  width: 220px;
+  min-height: 110px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.45);
+  color: #e2e8f0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.26);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.flow-node.input {
+  background: linear-gradient(
+    180deg,
+    rgba(13, 148, 136, 0.35),
+    rgba(30, 41, 59, 0.95)
+  );
+}
+
+.flow-node.process {
+  background: linear-gradient(
+    180deg,
+    rgba(14, 116, 144, 0.36),
+    rgba(30, 41, 59, 0.96)
+  );
+}
+
+.flow-node.output {
+  background: linear-gradient(
+    180deg,
+    rgba(168, 85, 247, 0.28),
+    rgba(30, 41, 59, 0.96)
+  );
+}
+
+.flow-node.branch {
+  background: rgba(91, 33, 182, 0.14);
+  border: 2px dashed rgba(216, 180, 254, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(216, 180, 254, 0.2),
+    0 0 0 1px rgba(168, 85, 247, 0.18);
+  min-height: 128px;
+  width: 260px;
+  position: relative;
+}
+
+.flow-node.branch-node {
+  border-style: dashed;
+  border-color: rgba(216, 180, 254, 0.9);
+  background: linear-gradient(
+    180deg,
+    rgba(91, 33, 182, 0.18),
+    rgba(15, 23, 42, 0.94)
+  );
+}
+
+.flow-node.if-container {
+  background: rgba(30, 41, 59, 0.32);
+  border: 2px solid rgba(125, 211, 252, 0.55);
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 0;
+  justify-content: flex-start;
+  cursor: move;
+}
+
+/* Keep connector + buttons clickable above the container node. */
+.react-flow__edgelabel-renderer {
+  z-index: 5;
+}
+
+.if-container-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0 12px;
+}
+
+.if-container-tag {
+  padding: 3px 18px;
+  border: 1px solid rgba(125, 211, 252, 0.75);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #e2e8f0;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+}
+
+.container-toggle-button {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(125, 211, 252, 0.75);
+  color: #7dd3fc;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.container-toggle-button:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.flow-node.adder-node {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.flow-node.branch-slot {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(125, 211, 252, 0.7);
+  border-radius: 8px;
+  box-shadow: none;
+  justify-content: center;
+}
+
+.branch-slot-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.condition-add-button {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px dashed rgba(125, 211, 252, 0.7);
+  color: #7dd3fc;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.condition-add-button:hover {
+  background: rgba(56, 189, 248, 0.18);
+}
+
+.branch-remove-button {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.branch-remove-button:hover {
+  background: rgba(127, 29, 29, 0.6);
+  border-color: rgba(248, 113, 113, 0.7);
+  color: #fecaca;
+}
+
+.branch-slot-body strong {
+  font-size: 0.84rem;
+}
+
+.branch-add-button {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 10px 26px rgba(14, 116, 144, 0.28);
+  color: #f8fafc;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.branch-add-button:hover {
+  transform: scale(1.06);
+}
+
+.branch-box-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 2px 0;
+}
+
+.flow-node.selected {
+  border-color: rgba(125, 211, 252, 0.9);
+  box-shadow:
+    0 0 0 2px rgba(125, 211, 252, 0.3),
+    0 18px 36px rgba(14, 116, 144, 0.18);
+}
+
+.flow-node strong {
+  display: block;
+  font-size: 0.98rem;
+  line-height: 1.3;
+}
+
+.node-kind {
+  font-size: 0.7rem;
+  color: #bae6fd;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.node-meta {
+  color: #cbd5e1;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-handle-target,
+.node-handle-source {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(125, 211, 252, 0.9);
+  background: #082f49;
+}
+
+.react-flow__node.selected .flow-node {
+  box-shadow:
+    0 0 0 2px rgba(125, 211, 252, 0.4),
+    0 18px 36px rgba(14, 116, 144, 0.18);
+}
+
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+}
+
+.edge-add-button {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  color: #f8fafc;
+  font-size: 1.2rem;
+  font-weight: 700;
+  box-shadow: 0 10px 26px rgba(14, 116, 144, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  z-index: 12;
+  pointer-events: all;
+}
+
+.edge-add-button:hover {
+  transform: scale(1.06);
+}
+
+.edge-action-picker {
+  z-index: 30;
+  min-width: 180px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 18px 38px rgba(2, 6, 23, 0.38);
+}
+
+.edge-action-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #e2e8f0;
+}
+
+.edge-action-picker span {
+  font-size: 0.72rem;
+  color: #7dd3fc;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.edge-action-picker select {
+  min-width: 160px;
+}
+
+.picker-cancel-button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.picker-cancel-button:hover {
+  background: rgba(51, 65, 85, 0.9);
+}
+
+/* React Flow's own stylesheet loads after this one, so match its specificity. */
+.react-flow__controls {
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.react-flow__controls .react-flow__controls-button {
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+}
+
+.react-flow__controls .react-flow__controls-button:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.react-flow__controls .react-flow__controls-button:disabled {
+  color: #64748b;
+}
+
+.react-flow__controls .react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.yaml-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.yaml-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+}
+
+.yaml-toggle h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.yaml-toggle-icon {
+  color: #7dd3fc;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.right-panel.collapsed {
+  width: 56px;
+  padding: 18px 12px;
+  align-items: center;
+}
+
+.right-panel.collapsed .yaml-toggle {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.right-panel.collapsed .yaml-toggle h2 {
+  writing-mode: vertical-rl;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+}
+
+.yaml-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.yaml-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+}
+
+.yaml-toggle h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.yaml-toggle-icon {
+  color: #7dd3fc;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.right-panel.collapsed {
+  width: 56px;
+  padding: 18px 12px;
+  align-items: center;
+}
+
+.right-panel.collapsed .yaml-toggle {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.right-panel.collapsed .yaml-toggle h2 {
+  writing-mode: vertical-rl;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+}
+
+.yaml-panel pre {
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #c7f9cc;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+  .workspace,
+  .workspace.yaml-collapsed {
+    grid-template-columns: 1fr;
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
+
+  /* Give leftover height to the canvas so the collapsed bar stays header-sized. */
+  .workspace.yaml-collapsed {
+    grid-template-rows: 1fr auto;
+  }
+
+  .canvas-stage {
+    min-height: 540px;
+  }
+
+  /* Stacked layout: collapse the YAML panel into a full-width bar instead of a side strip. */
+  .right-panel.collapsed {
+    width: auto;
+    height: auto;
+    align-self: start;
+    padding: 18px;
+    align-items: stretch;
+  }
+
+  .right-panel.collapsed .yaml-panel {
+    flex: 0 0 auto;
+  }
+
+  .right-panel.collapsed .yaml-toggle {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .right-panel.collapsed .yaml-toggle h2 {
+    writing-mode: horizontal-tb;
+    font-size: 1.1rem;
+    letter-spacing: normal;
+  }
+
+  .topbar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 18px 20px;
+  }
+
+  .topbar h1 {
+    font-size: 1.5rem;
   }
 }

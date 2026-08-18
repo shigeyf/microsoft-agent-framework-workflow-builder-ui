@@ -1,0 +1,118 @@
+import type {
+  ActionKind,
+  ActionModel,
+  InputParam,
+  WorkflowConnection,
+} from "./types";
+
+export const defaultConnections: WorkflowConnection[] = [];
+
+export const defaultInputs: InputParam[] = [];
+
+export const defaultActions: ActionModel[] = [];
+
+export function createAction(kind: ActionKind): ActionModel {
+  const id = `${kind.toLowerCase()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  switch (kind) {
+    case "SetValue":
+      return {
+        id,
+        kind,
+        displayName: "Set value",
+        x: 40,
+        y: 80,
+        path: "Local.value",
+        value: "Hello",
+      };
+    case "SetVariable":
+      return {
+        id,
+        kind,
+        displayName: "Set variable",
+        x: 40,
+        y: 80,
+        variable: "Local.value",
+        value: "sample value",
+      };
+    case "SendActivity":
+      return {
+        id,
+        kind,
+        displayName: "Send activity",
+        x: 40,
+        y: 80,
+        activity: { text: "Hello from workflow" },
+        activityText: "Hello from workflow",
+      };
+    case "If":
+      return {
+        id,
+        kind,
+        displayName: "Conditional branch",
+        x: 40,
+        y: 80,
+        condition: "=Local.age >= 18",
+        then: [],
+        else: [],
+      };
+    case "ConditionGroup":
+      return {
+        id,
+        kind,
+        displayName: "Condition group",
+        x: 40,
+        y: 80,
+        conditions: [
+          {
+            condition: "=Local.isReady",
+            actions: [],
+          },
+        ],
+      };
+    case "InvokeAzureAgent":
+      return {
+        id,
+        kind,
+        displayName: "Invoke agent",
+        x: 40,
+        y: 80,
+        agentName: "AssistantAgent",
+        conversationId: "=System.ConversationId",
+      };
+    case "Question":
+      return {
+        id,
+        kind,
+        displayName: "Ask user",
+        x: 40,
+        y: 80,
+        question: { text: "What is your name?" },
+        questionText: "What is your name?",
+        variable: "Local.userName",
+        defaultValue: "Guest",
+        default: "Guest",
+      };
+    case "RequestExternalInput":
+      return {
+        id,
+        kind,
+        displayName: "Request external input",
+        x: 40,
+        y: 80,
+        prompt: { text: "Do you have any feedback?" },
+        variable: "Local.feedback",
+        default: "No feedback",
+      };
+    default:
+      return {
+        id,
+        kind: "SetValue",
+        displayName: "Set value",
+        x: 40,
+        y: 80,
+        path: "Local.value",
+        value: "sample value",
+      };
+  }
+}
