@@ -377,14 +377,12 @@ export function buildYaml(
   inputs: InputParam[],
   actions: ActionModel[],
 ): string {
-  const inputBlock = inputs.length
-    ? inputs
-        .map(
-          (input) =>
-            `  ${input.name}:\n    type: ${input.type}\n    description: ${yamlScalar(input.description)}`,
-        )
-        .join("\n")
-    : "  # no inputs";
+  const inputBlock = inputs
+    .map(
+      (input) =>
+        `  ${input.name}:\n    type: ${input.type}\n    description: ${yamlScalar(input.description)}`,
+    )
+    .join("\n");
 
   const actionsYaml = renderActionList(actions).join("\n");
 
@@ -407,12 +405,11 @@ export function buildYaml(
     ].join("\n");
   }
 
+  // `description` and `inputs` are optional, so they are omitted while empty.
   return [
     `name: ${name}`,
-    `description: ${yamlScalar(description)}`,
-    "",
-    "inputs:",
-    inputBlock,
+    ...(description ? [`description: ${yamlScalar(description)}`] : []),
+    ...(inputs.length > 0 ? ["", "inputs:", inputBlock] : []),
     "",
     "actions:",
     actionsYaml,

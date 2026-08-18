@@ -41,6 +41,8 @@ export type { WorkflowGraphNode } from "./graph/buildNodes";
 
 type Position = { x: number; y: number };
 
+const DEFAULT_NAME = "new-workflow";
+
 function importWarning(parsed: ParsedWorkflow): string {
   const notes: string[] = [];
 
@@ -61,10 +63,8 @@ function importWarning(parsed: ParsedWorkflow): string {
 
 export function WorkflowBuilder() {
   const [style, setStyle] = useState<WorkflowStyle>("python");
-  const [name, setName] = useState("greeting-workflow");
-  const [description, setDescription] = useState(
-    "A simple workflow that greets the user",
-  );
+  const [name, setName] = useState(DEFAULT_NAME);
+  const [description, setDescription] = useState("");
   const [triggerKind, setTriggerKind] = useState("OnConversationStart");
   const [inputs, setInputs] = useState<InputParam[]>(defaultInputs);
   const [actions, setActions] = useState<ActionModel[]>(defaultActions);
@@ -394,8 +394,8 @@ export function WorkflowBuilder() {
   };
 
   const resetWorkflow = () => {
-    setName("greeting-workflow");
-    setDescription("A simple workflow that greets the user");
+    setName(DEFAULT_NAME);
+    setDescription("");
     setTriggerKind("OnConversationStart");
     setInputs([]);
     setActions([]);

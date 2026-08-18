@@ -18,7 +18,21 @@ function yamlOf(actions: ActionModel[], inputs: InputParam[] = noInputs) {
 describe("buildYaml", () => {
   it("emits an empty actions block when there is nothing to render", () => {
     expect(yamlOf([])).toContain("actions:");
-    expect(yamlOf([])).toContain("# no inputs");
+  });
+
+  it("omits the optional description and inputs when they are empty", () => {
+    const yaml = buildYaml(
+      "python",
+      "new-workflow",
+      "",
+      "OnConversationStart",
+      noInputs,
+      [],
+    );
+
+    expect(yaml).not.toContain("description:");
+    expect(yaml).not.toContain("inputs:");
+    expect(yaml.trim()).toBe("name: new-workflow\n\nactions:".trim());
   });
 
   it("renders declared inputs", () => {
