@@ -355,7 +355,7 @@ Microsoft Learn の Actions Quick Reference は 2 か所にあり、内容が食
 | `EditTableV2`                  | ○      | ○   | —        |
 | `If`                           | ○      | ○   | ○        |
 | `ConditionGroup`               | ○      | ○   | ○        |
-| `Foreach`                      | ○      | ○   | —        |
+| `Foreach`                      | ○ ※    | ○ ※ | —        |
 | `BreakLoop`                    | ○      | ○   | —        |
 | `ContinueLoop`                 | ○      | ○   | —        |
 | `GotoAction`                   | ○      | ○   | ○        |
@@ -378,6 +378,8 @@ Microsoft Learn の Actions Quick Reference は 2 か所にあり、内容が食
 | `RetrieveConversationMessages` | —      | ○   | —        |
 
 C# にはこのほか Power Virtual Agents 由来の `BeginDialog` / `OAuthInput` / `RecognizeIntent` / `TransferConversation` / `EmitEvent` / `InvokeConnectorAction` など約 30 種が存在する。Python にはない。
+
+※ `Foreach` は両言語に存在するが、**プロパティ名が互いに異なり互換性がない**。6.10 節を参照。
 
 ### 6.9.2 `SetValue` は Python 専用
 
@@ -404,32 +406,86 @@ C# のビジターには `If` / `EndWorkflow` / `SetValue` の `Visit` が無い
 
 コレクションを反復する。`actions` を持つコンテナ型であり、`If` や `ConditionGroup` と同じくネストした構造を取る。
 
+**同じ kind 名でありながら、C# と Python でプロパティ名が完全に異なる。** Learn は両ピボットとも Python 側の形だけを載せているため、C# の記載は誤りである。
+
+C# の形（`dotnet/tests/.../Workflows/LoopEach.yaml` より）:
+
+```yaml
+- kind: Foreach
+  id: foreach_loop
+  items: =["a", "b", "c", "d", "e", "f"] # 反復対象
+  value: Local.LoopValue # 現在の要素を入れる変数のパス
+  index: Local.LoopIndex # 任意。現在の添字を入れる変数のパス
+  actions:
+    - kind: SendActivity
+      id: send_activity_inner
+      activity: x{Local.Count} - {Local.LoopIndex}:{Local.LoopValue}
+```
+
+`items` と `value` が必須で、`index` は任意。`value` / `index` は**変数のパス**を書く。
+
+Python の形（`_executors_control_flow.py` より）:
+
 ```yaml
 - kind: Foreach
   id: process_items
-  source: =Local.items
-  itemName: item # 省略時は item
-  indexName: index # 省略時は index。キー自体が無ければ index 変数は作られない
+  source: =Local.items # 反復対象
+  itemName: item # 任意。既定は item
+  indexName: index # 任意。キー自体が無ければ添字変数は作られない
   actions:
     - kind: SendActivity
       activity:
         text: =Concat("Processing ", Local.item)
 ```
 
-現在の要素は `Local.<itemName>` に束縛される。必須項目は `source` と `actions`。
+`source` と `actions` が必須。`itemName` / `indexName` は**変数のパスではなく名前**で、実際の変数は `Local.<itemName>` に束縛される。
+
+| 用途       | C#        | Python                      |
+| ---------- | --------- | --------------------------- |
+| 反復対象   | `items`   | `source`                    |
+| 現在の要素 | `value`   | `itemName`（`Local.` 補完） |
+| 現在の添字 | `index`   | `indexName`（同上）         |
+| 本体       | `actions` | `actions`                   |
+
+一方の形をもう一方へそのまま持ち込むことはできない。
 
 ### `BreakLoop` / `ContinueLoop`
 
-`Foreach` の内側で使う。固有のプロパティは持たない。
+`Foreach` の内側で使う。固有のプロパティは持たず、`id` のみを指定する。両言語で同じ形である。
 
 ```yaml
-- kind: BreakLoop
-  id: stop_here
+- kind: Foreach
+  id: foreach_loop
+  items: =["a", "b", "c"]
+  value: Local.LoopValue
+  actions:
+    - kind: BreakLoop
+      id: break_loop_now
+
+    # BreakLoop 以降は実行されない
+    - kind: SetVariable
+      id: set_variable_inner
+      variable: Local.Count
+      value: =Local.Count + 1
 ```
+
+`ContinueLoop` も同じ形で、以降の本体をスキップして次の反復へ進む。
+
+いずれも制御を移す終端アクションであり、後続のアクションへは進まない。C# の実装では `GotoAction` / `EndWorkflow` / `EndConversation` などと同じ「終端アクション」として扱われる。
 
 ### `EndConversation`
 
 会話を終了する。固有のプロパティは持たない。`EndWorkflow` / `EndDialog` / `CancelDialog` / `CancelAllDialogs` も同様に、制御を移す終端アクションである。
+
+```yaml
+- kind: EndConversation
+  id: end_all
+
+# これ以降は実行されない
+- kind: SendActivity
+  id: send_activity_1
+  activity: NEVER 1!
+```
 
 ### `SetMultipleVariables`
 
@@ -450,18 +506,36 @@ C# のビジターには `If` / `EndWorkflow` / `SetValue` の `Visit` が無い
 
 ### `ParseValue`
 
-**Learn の記載と実装が異なる。** Learn は `source` と `variable` を示すが、実装が読むのは `variable`（または `path`）、`value`、任意の `valueType` である。
+**Learn の記載と実装が異なる。** Learn は `source` と `variable` を示すが、実際に読まれるのは `variable`（Python は `path` も可）、`value`、任意の `valueType` である。この形は C# と Python で共通している。
+
+C# の例（`dotnet/tests/.../Workflows/ParseValue.yaml` より）:
 
 ```yaml
-# 実装が受け付ける形
+- kind: SetVariable
+  id: set_var
+  variable: Local.MySource
+  value: "42"
+
 - kind: ParseValue
-  id: parse_json
-  variable: Local.ParsedData
-  value: =System.LastMessage.Text
-  valueType: object # string / number / boolean / object / array
+  id: parse_var
+  variable: Local.MyVar
+  value: =Local.MySource
+  valueType: Number # Table を指定すると配列として解釈する
 ```
 
-`valueType` を省略すると型変換は行われない。
+Python は `valueType` に `string` / `number` / `boolean` / `object` / `array` を受け付ける。C# のテストでは `Number` / `Table` が使われており、**値の語彙も一致しない**。`valueType` を省略すると型変換は行われない。
+
+### 補足: `SendActivity` の文字列テンプレート
+
+C# のサンプルでは `activity` にマップではなく文字列を直接与え、`{変数}` で補間する形が使われている。
+
+```yaml
+- kind: SendActivity
+  id: send_activity_inner
+  activity: x{Local.Count} - {Local.LoopIndex}:{Local.LoopValue}
+```
+
+`activity.text` を使う形と併存する。読み込み側はどちらの形も受け付ける必要がある。
 
 ### 未実装アクションの扱い
 
@@ -483,6 +557,7 @@ C# のビジターには `If` / `EndWorkflow` / `SetValue` の `Visit` が無い
 | 文書構造     | `name` / `description` / `inputs` / `actions`                 | `kind: Workflow` / `trigger.actions`        |
 | 変数名前空間 | `Local.*` `System.*` `Workflow.Inputs.*` `Workflow.Outputs.*` | `Local.*` `System.*` のみ                   |
 | アクション   | `SetValue` あり                                               | `SetValue` なし。会話操作など C# 専用が多数 |
+| プロパティ   | `Foreach` は `source` / `itemName` / `indexName`              | `Foreach` は `items` / `value` / `index`    |
 
 特に名前空間が致命的で、C# は `Workflow.Inputs` / `Workflow.Outputs` を持たない。入力は `System.LastMessage`、出力は `SendActivity` で表現する。
 
