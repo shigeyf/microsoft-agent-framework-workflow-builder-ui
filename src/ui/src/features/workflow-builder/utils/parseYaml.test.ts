@@ -302,6 +302,17 @@ describe("parseWorkflowYaml with official Agent Framework samples", () => {
     expect(parsed.unsupportedKinds).toEqual(["Foreach"]);
   });
 
+  it("flags actions the detected style cannot run", () => {
+    const csharp = parseWorkflowYaml(
+      "kind: Workflow\ntrigger:\n  kind: OnConversationStart\n  id: w\n  actions:\n    - kind: SetValue\n      path: Local.a\n      value: 1\n",
+    );
+
+    expect(csharp.styleMismatchKinds).toEqual(["SetValue"]);
+    expect(
+      parseWorkflowYaml(readSample("conditional_workflow")).styleMismatchKinds,
+    ).toEqual([]);
+  });
+
   it("rejects yaml that is not a workflow", () => {
     expect(() => parseWorkflowYaml("name: nope")).toThrow(/actions/);
   });

@@ -1,5 +1,7 @@
 import { parse } from "yaml";
 import { actionKindOptions } from "../types";
+import { flattenActions } from "../domain/actionTree";
+import { isKindAvailable } from "../domain/styles";
 import type {
   ActionKind,
   ActionModel,
@@ -20,6 +22,8 @@ export type ParsedWorkflow = {
   actions: ActionModel[];
   /** Action kinds the builder has no editor for; they are still placed on the canvas. */
   unsupportedKinds: string[];
+  /** Known kinds that the detected style's runtime does not implement. */
+  styleMismatchKinds: string[];
 };
 
 export class WorkflowParseError extends Error {}
@@ -400,13 +404,24 @@ export function parseWorkflowYaml(text: string): ParsedWorkflow {
     );
   }
 
+  const actions = parseActionList(rawActions, ids, unsupported);
+
   return {
     style,
     name: asText(document.name) || asText(trigger?.id) || "imported-workflow",
     description: asText(document.description),
     triggerKind: asText(trigger?.kind) || "OnConversationStart",
     inputs: parseInputs(document.inputs),
-    actions: parseActionList(rawActions, ids, unsupported),
+    actions,
     unsupportedKinds: [...unsupported],
+    styleMismatchKinds: [
+      ...new Set(
+        flattenActions(actions)
+          .map((action) => action.kind)
+          .filter(
+            (kind) => KNOWN_KINDS.has(kind) && !isKindAvailable(kind, style),
+          ),
+      ),
+    ],
   };
 }

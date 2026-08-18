@@ -4,18 +4,23 @@ import type { WorkflowStyle } from "../types";
 
 type WorkflowHeaderProps = {
   style: WorkflowStyle;
+  /** The two runtimes are not interchangeable, so an existing workflow keeps its style. */
+  styleLocked: boolean;
   onStyleChange: (value: WorkflowStyle) => void;
   onCopyYaml: () => void | Promise<void>;
   onImportYaml: (text: string) => void;
   onImportFailed: (message: string) => void;
+  onNewWorkflow: () => void;
 };
 
 export function WorkflowHeader({
   style,
+  styleLocked,
   onStyleChange,
   onCopyYaml,
   onImportYaml,
   onImportFailed,
+  onNewWorkflow,
 }: WorkflowHeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadingSample, setLoadingSample] = useState("");
@@ -64,6 +69,12 @@ export function WorkflowHeader({
           <span>Style :</span>
           <select
             value={style}
+            disabled={styleLocked}
+            title={
+              styleLocked
+                ? "Python と C# は文書構造も変数名前空間も異なります。切り替えるには New workflow で作り直してください。"
+                : undefined
+            }
             onChange={(event) =>
               onStyleChange(event.target.value as WorkflowStyle)
             }
@@ -98,6 +109,14 @@ export function WorkflowHeader({
           hidden
           onChange={handleFileChange}
         />
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onNewWorkflow}
+        >
+          New workflow
+        </button>
 
         <button
           type="button"

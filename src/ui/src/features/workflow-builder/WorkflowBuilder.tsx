@@ -23,13 +23,13 @@ import {
   parseNodeId,
   type BranchRef,
 } from "./domain/nodeIds";
+import { canChangeStyle, kindsForStyle } from "./domain/styles";
 import { branchSlotPosition } from "./graph/buildNodes";
 import { autoLayout } from "./graph/autoLayout";
 import { LAYOUT, OVERLAY_CASCADE } from "./graph/layout";
 import { useWorkflowGraph } from "./graph/useWorkflowGraph";
 import { buildYaml } from "./utils/yaml";
-import { parseWorkflowYaml } from "./utils/parseYaml";
-import { actionKindOptions } from "./types";
+import { parseWorkflowYaml, type ParsedWorkflow } from "./utils/parseYaml";
 import type {
   ActionKind,
   ActionModel,
@@ -40,6 +40,24 @@ import type {
 export type { WorkflowGraphNode } from "./graph/buildNodes";
 
 type Position = { x: number; y: number };
+
+function importWarning(parsed: ParsedWorkflow): string {
+  const notes: string[] = [];
+
+  if (parsed.unsupportedKinds.length > 0) {
+    notes.push(
+      `未対応のアクションはそのまま表示されます: ${parsed.unsupportedKinds.join(", ")}`,
+    );
+  }
+
+  if (parsed.styleMismatchKinds.length > 0) {
+    notes.push(
+      `${parsed.style === "python" ? "Python" : "C#"} では使えないアクションが含まれています: ${parsed.styleMismatchKinds.join(", ")}`,
+    );
+  }
+
+  return notes.join(" / ");
+}
 
 export function WorkflowBuilder() {
   const [style, setStyle] = useState<WorkflowStyle>("python");
@@ -372,11 +390,22 @@ export function WorkflowBuilder() {
     });
     setCollapsedActionIds([]);
     closeInspector();
-    setImportError(
-      parsed.unsupportedKinds.length > 0
-        ? `未対応のアクションはそのまま表示されます: ${parsed.unsupportedKinds.join(", ")}`
-        : "",
-    );
+    setImportError(importWarning(parsed));
+  };
+
+  const resetWorkflow = () => {
+    setName("greeting-workflow");
+    setDescription("A simple workflow that greets the user");
+    setTriggerKind("OnConversationStart");
+    setInputs([]);
+    setActions([]);
+    setCollapsedActionIds([]);
+    setNodePositions({
+      start: LAYOUT.startPosition,
+      output: LAYOUT.outputPosition,
+    });
+    closeInspector();
+    setImportError("");
   };
 
   const resolvedActionId = findAction(actions, selectedActionId)
@@ -393,15 +422,19 @@ export function WorkflowBuilder() {
           : null;
 
   const actionBySelectedId = resolvedActionId;
+  const availableKinds = kindsForStyle(style);
+  const styleLocked = !canChangeStyle(actions.length, inputs.length);
 
   return (
     <div className="app-shell">
       <WorkflowHeader
         style={style}
+        styleLocked={styleLocked}
         onStyleChange={setStyle}
         onCopyYaml={copyYaml}
         onImportYaml={importYaml}
         onImportFailed={setImportError}
+        onNewWorkflow={resetWorkflow}
       />
 
       {importError ? (
@@ -417,7 +450,7 @@ export function WorkflowBuilder() {
             nodes={workflowNodes}
             connections={workflowConnections}
             selectedActionId={actionBySelectedId}
-            actionKindOptions={actionKindOptions}
+            actionKindOptions={availableKinds}
             onSelectAction={(nodeId, anchor) =>
               handleNodeSelection(nodeId, "action", anchor)
             }
@@ -443,7 +476,7 @@ export function WorkflowBuilder() {
               description={description}
               triggerKind={triggerKind}
               style={style}
-              actionKindOptions={actionKindOptions}
+              actionKindOptions={availableKinds}
               onClose={closeInspector}
               onNameChange={setName}
               onDescriptionChange={setDescription}
