@@ -56,9 +56,14 @@ button {
   font: inherit;
 }
 
-select,
-input,
-textarea {
+/*
+ * Form styling is scoped to the panels that need it. Applying it to bare element
+ * selectors previously leaked into the header and canvas and broke their layout.
+ */
+.inspector-panel select,
+.inspector-panel input,
+.inspector-panel textarea,
+.edge-action-picker select {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -68,7 +73,16 @@ textarea {
   padding: 10px 12px;
 }
 
-textarea {
+.topbar select {
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.75);
+  color: #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.inspector-panel textarea {
   min-height: 90px;
   resize: vertical;
 }
@@ -212,10 +226,6 @@ button:hover {
   width: 42px;
   height: 42px;
   font-weight: 700;
-}
-
-.inspector-toggle-group {
-  display: none;
 }
 
 .action-select.accent {
@@ -367,7 +377,9 @@ select option {
   gap: 14px;
 }
 
-label {
+/* Stacked field label; scoped so it cannot affect labels used as inline controls. */
+.inspector-panel label,
+.edge-action-picker label {
   display: flex;
   flex-direction: column;
   gap: 8px;

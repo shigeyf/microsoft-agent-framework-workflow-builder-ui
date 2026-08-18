@@ -453,34 +453,44 @@ export function GraphCanvas({
     [onRemoveCondition],
   );
 
+  const toFlowNode = useCallback(
+    (node: WorkflowGraphNode): Node<FlowNodeData> => ({
+      id: node.id,
+      type: "flowNode",
+      position: { x: node.x, y: node.y },
+      data: {
+        kind: node.kind,
+        label: node.displayName,
+        meta: node.meta,
+        branchKind: node.branchKind,
+        width: node.width,
+        height: node.height,
+        collapsed: node.collapsed,
+        actionKind: node.actionKind,
+        onAddToBranch: handleAddToBranch,
+        onToggleCollapse: handleToggleCollapse,
+        onAddCondition: handleAddCondition,
+        onRemoveCondition: handleRemoveCondition,
+      },
+      zIndex: node.branchKind === "container" ? 0 : 1,
+      draggable: node.kind !== "branch" || node.branchKind === "container",
+      selectable: node.kind !== "branch",
+      connectable: node.kind !== "branch",
+      selected: node.kind === "process" && node.id === selectedActionId,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    }),
+    [
+      handleAddToBranch,
+      handleToggleCollapse,
+      handleAddCondition,
+      handleRemoveCondition,
+      selectedActionId,
+    ],
+  );
+
   const [reactFlowNodes, setReactFlowNodes] = useState<Node<FlowNodeData>[]>(
-    () =>
-      nodes.map((node) => ({
-        id: node.id,
-        type: "flowNode",
-        position: { x: node.x, y: node.y },
-        data: {
-          kind: node.kind,
-          label: node.displayName,
-          meta: node.meta,
-          branchKind: node.branchKind,
-          width: node.width,
-          height: node.height,
-          collapsed: node.collapsed,
-          actionKind: node.actionKind,
-          onAddToBranch: handleAddToBranch,
-          onToggleCollapse: handleToggleCollapse,
-          onAddCondition: handleAddCondition,
-          onRemoveCondition: handleRemoveCondition,
-        },
-        zIndex: node.branchKind === "container" ? 0 : 1,
-        draggable: node.kind !== "branch" || node.branchKind === "container",
-        selectable: node.kind !== "branch",
-        connectable: node.kind !== "branch",
-        selected: node.kind === "process" && node.id === selectedActionId,
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      })),
+    () => nodes.map(toFlowNode),
   );
 
   useEffect(() => {
@@ -488,35 +498,8 @@ export function GraphCanvas({
       return;
     }
 
-    setReactFlowNodes(
-      nodes.map((node) => ({
-        id: node.id,
-        type: "flowNode",
-        position: { x: node.x, y: node.y },
-        data: {
-          kind: node.kind,
-          label: node.displayName,
-          meta: node.meta,
-          branchKind: node.branchKind,
-          width: node.width,
-          height: node.height,
-          collapsed: node.collapsed,
-          actionKind: node.actionKind,
-          onAddToBranch: handleAddToBranch,
-          onToggleCollapse: handleToggleCollapse,
-          onAddCondition: handleAddCondition,
-          onRemoveCondition: handleRemoveCondition,
-        },
-        zIndex: node.branchKind === "container" ? 0 : 1,
-        draggable: node.kind !== "branch" || node.branchKind === "container",
-        selectable: node.kind !== "branch",
-        connectable: node.kind !== "branch",
-        selected: node.kind === "process" && node.id === selectedActionId,
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      })),
-    );
-  }, [nodes, selectedActionId]);
+    setReactFlowNodes(nodes.map(toFlowNode));
+  }, [nodes, toFlowNode]);
 
   const reactFlowEdges = useMemo<WorkflowEdge[]>(
     () =>
